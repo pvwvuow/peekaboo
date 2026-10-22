@@ -1366,6 +1366,16 @@ html[lang='fa'] .rar-chip { font-family: var(--fa-body); letter-spacing: 0; text
 .livehint { padding: 12px 6px; text-align: center; }
 @media (max-width: 640px) { .px-ticket { flex-direction: column; text-align: center; } .px-cmp .px-r { grid-template-columns: 1fr 1fr 1fr; font-size: 14px; } }
 
+/* v17: chat soon, live settings */
+.soonpill { margin-inline-start: auto; padding: 2px 8px; border-radius: 999px; background: #efe8fa; color: #5b2fb8; font-size: 11px; font-weight: 800; }
+.chat-soon .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.sync-note { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 14px; border-radius: 18px; background: #e6f6ee; color: #1f5f43; }
+.sync-note img { width: 40px; height: 40px; object-fit: contain; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #fff; background: var(--c); box-shadow: 0 0 0 1px #d8cfec; cursor: pointer; }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px #2b1f55; }
+.field .hint { display: block; margin-top: 4px; }
+
 </style>
 </head>
 <body>
@@ -1462,7 +1472,7 @@ const T = {
     'sh.err': 'به ربات وصل نشد. چیزی کم نشد.', 'sh.poorT': 'سکه‌ت کافی نیست.', 'sh.haveT': 'این رو قبلاً داری.',
     'cl.h': 'کلکسیون من', 'cl.p': 'هر چی خریدی اینجاست. از هر تم یه تکه بردار و قاطی کن؛ توی دیسکورد هم همین می‌شه.', 'cl.wear': 'بپوش', 'cl.synced': 'توی دیسکورد هم عوض شد', 'cl.toShop': 'فروشگاه', 'cl.toMine': 'کلکسیون من',
     'cl.cardP': 'پس‌زمینهٔ کارت', 'cl.borderP': 'قاب دور کارت', 'cl.btnP': 'شکل دکمه‌ها', 'cl.fontP': 'فونت عنوان',
-    'app.busy': 'یه لحظه...', 'app.opening': 'دارم پنلت رو باز می‌کنم...', 'app.toDiscord': 'می‌رم سمت دیسکورد...', 'in.soon': 'نامه فرستادن از سایت هنوز وصل نشده؛ فعلاً از دیسکورد بفرست.', 'in.liveEmpty': 'نامه‌هات هنوز توی دیسکورد می‌رسن؛ این‌جا بعداً می‌آن.', 'pass.already': 'امروز رو گرفتی.', 'link.slow': 'خیلی سریع شد، چند دقیقه دیگه.', 'link.cardH': 'کارت لینک تو', 'link.cardP': 'همونی که توی دیسکورد می‌بینن.', 'link.cardMore': 'تنظیم دقیق‌تر', 'px.locked': 'فقط با پیکوپس', 'px.next': 'هدیه‌ی بعدی تا', 'px.resets': 'هر روز ساعت ۱۲:۳۰ به وقت ایران باز می‌شه · برای تو: {t}', 'px.daysLeft': '{n} روز مونده', 'px.level': 'مرحله‌ی {n} از ۳۰', 'px.price': '{n} سکه', 'px.pitchH': 'پیکوپس رو باز کن', 'px.pitchP': '۳۰ روز هدیه‌ی روزانه، یه بلیت طلایی، ۳ اسکین مخصوص و رنگ و قاب دلخواه برای کارتت.', 'px.buy': 'گرفتن پیکوپس · {n} سکه', 'px.getCoins': 'خرید سکه', 'px.freeH': 'هدیه‌ی رایگان روزانه', 'px.freeP': 'بدون پیکوپس هم هر روز بیا: هر {e} روز {c} سکه، توی ماه {tot} سکه. بقیه‌ی امکانات قفله.', 'px.freeBtn': 'گرفتن هدیه‌ی روز {n}', 'px.freeDay': 'روز {n} از {m}', 'px.roadH': 'جاده‌ی فصل', 'px.roadLocked': 'جاده‌ی پیکوپس برای اعضا بازه', 'px.perks': 'پیکوپس چی بهت می‌ده', 'px.pCoinsH': 'سکه‌ی روزانه', 'px.pCoinsP': 'هر ۲ روز {n} سکه؛ توی یه فصل {tot} سکه.', 'px.pTicketH': 'بلیت طلایی', 'px.pTicketP': 'روی یه نامه‌ی ناشناس خرجش کن تا ببینی کی فرستاده. روز ۵ فصل یکی بهت می‌رسه.', 'px.pSkinsH': '۳ اسکین مخصوص', 'px.pSkinsP': 'پس‌زمینه‌های ابر، شفق و شب برای کارت‌هات؛ روز ۷، ۱۸ و ۲۷.', 'px.pLookH': 'رنگ و قاب کارت', 'px.pLookP': 'برای کارت پیکوپست رنگ و قاب دلخواه انتخاب کن.', 'px.skinsH': 'اسکین‌هایی که می‌گیری', 'px.skinsP': 'همین‌طوری روی کارتت دیده می‌شن.', 'px.skinDay': 'روز {n}', 'px.tkH': 'بلیت طلایی چطور کار می‌کنه', 'px.tk1': 'یه نامه‌ی ناشناس بهت می‌رسه.', 'px.tk2': 'دکمه‌ی «بلیت طلایی» رو می‌زنی و یه بلیت خرج می‌کنی.', 'px.tk3': 'می‌بینی کی فرستاده؛ فرستنده هم خبردار می‌شه.', 'px.tkNote': 'الان {n} بلیت داری. فقط تو سرورهایی کار می‌کنه که ادمین اجازه داده.', 'px.cmpH': 'رایگان یا پیکوپس', 'px.cmpFree': 'رایگان', 'px.cmpGift': 'هدیه‌ی روزانه', 'px.cmpGiftF': 'هر {e} روز {c} سکه', 'px.cmpGiftP': 'هر ۲ روز {n} سکه', 'px.cmpMonth': 'سکه در ماه', 'px.cmpTicket': 'بلیت طلایی', 'px.cmpTicketP': 'یکی روز ۵', 'px.cmpSkins': 'اسکین مخصوص', 'px.cmpLook': 'رنگ و قاب کارت', 'px.taken': 'امروز رو گرفتی', 'px.freeModal': 'روز {n}', 'px.freeGot': '{n} سکه گرفتی.', 'px.freeNone': 'امروز ثبت شد. هر {e} روز سکه می‌گیری.', 'px.bought': 'پیکوپس مال توئه!', 'px.poor': 'سکه‌ات کافی نیست؛ اول سکه بخر.', 'w.closed': 'فروشگاه الان بسته‌ست.', 'w.noWay': 'راه پرداخت نداره', 'w.reviewNote': 'سفارش‌ها اول توسط صاحب ربات بررسی می‌شن؛ بعد از تایید سکه‌ات اضافه می‌شه.', 'w.refMissing': 'شماره‌ی پیگیری رو بنویس.', 'w.sending': 'دارم سفارش رو می‌فرستم...', 'w.placedLive': 'سفارشت برای بررسی رفت.', 'w.placedNoOwner': 'سفارش ثبت شد ولی به صاحب ربات نرسید؛ تو دیسکورد بهش خبر بده.', 'w.errRefUsed': 'این شماره‌ی پیگیری قبلاً ثبت شده.', 'w.errRef': 'شماره‌ی پیگیری درست نیست.', 'w.errChanged': 'قیمت عوض شده؛ دوباره امتحان کن.', 'w.errMany': 'چند سفارش در انتظار داری؛ صبر کن بررسی بشن.', 'w.errSlow': 'خیلی سریع شد؛ چند دقیقه دیگه.', 'w.errReceipt': 'عکس رسید قابل قبول نیست.', 'srv.own': 'مال خودم', 'srv.manage': 'می‌تونم مدیریت کنم', 'srv.noneLive': 'سرور مال خودت که ربات توش باشه پیدا نشد.', 'srv.roleOwner': 'مالک', 'srv.roleManage': 'دسترسی مدیریت سرور', 'srv.liveH': 'مدیریت سرور', 'srv.liveP': 'تنظیمات سرور فعلاً تو دیسکورد انجام می‌شه. اینجا فقط سرورهایی رو می‌بینی که ربات توشونه.', 'in.old': 'این نامه قبل از اینه که سایت بتونه متن‌ها رو نشون بده. تو دیسکورد بازش کن.', 'in.replyDiscord': 'جواب دادن فعلاً تو دیسکورد انجام می‌شه.', 'app.live': 'وصل شدی', 'app.liveT': 'سکه‌ها، پیکاپس، کد لینک و ظاهر کارتت همون‌هایی‌ان که توی دیسکورد داری. نامه‌ها و چت هنوز وصل نشدن.', 'app.noProfile': 'هنوز تو ربات نیستی. یه بار توی سرور پیکابو /anon رو بزن و صفحه رو تازه کن.',
+    'app.busy': 'یه لحظه...', 'app.opening': 'دارم پنلت رو باز می‌کنم...', 'app.toDiscord': 'می‌رم سمت دیسکورد...', 'in.soon': 'نامه فرستادن از سایت هنوز وصل نشده؛ فعلاً از دیسکورد بفرست.', 'in.liveEmpty': 'نامه‌هات هنوز توی دیسکورد می‌رسن؛ این‌جا بعداً می‌آن.', 'pass.already': 'امروز رو گرفتی.', 'link.slow': 'خیلی سریع شد، چند دقیقه دیگه.', 'link.cardH': 'کارت لینک تو', 'link.cardP': 'همونی که توی دیسکورد می‌بینن.', 'link.cardMore': 'تنظیم دقیق‌تر', 'px.locked': 'فقط با پیکوپس', 'px.next': 'هدیه‌ی بعدی تا', 'px.resets': 'هر روز ساعت ۱۲:۳۰ به وقت ایران باز می‌شه · برای تو: {t}', 'px.daysLeft': '{n} روز مونده', 'px.level': 'مرحله‌ی {n} از ۳۰', 'px.price': '{n} سکه', 'px.pitchH': 'پیکوپس رو باز کن', 'px.pitchP': '۳۰ روز هدیه‌ی روزانه، یه بلیت طلایی، ۳ اسکین مخصوص و رنگ و قاب دلخواه برای کارتت.', 'px.buy': 'گرفتن پیکوپس · {n} سکه', 'px.getCoins': 'خرید سکه', 'px.freeH': 'هدیه‌ی رایگان روزانه', 'px.freeP': 'بدون پیکوپس هم هر روز بیا: هر {e} روز {c} سکه، توی ماه {tot} سکه. بقیه‌ی امکانات قفله.', 'px.freeBtn': 'گرفتن هدیه‌ی روز {n}', 'px.freeDay': 'روز {n} از {m}', 'px.roadH': 'جاده‌ی فصل', 'px.roadLocked': 'جاده‌ی پیکوپس برای اعضا بازه', 'px.perks': 'پیکوپس چی بهت می‌ده', 'px.pCoinsH': 'سکه‌ی روزانه', 'px.pCoinsP': 'هر ۲ روز {n} سکه؛ توی یه فصل {tot} سکه.', 'px.pTicketH': 'بلیت طلایی', 'px.pTicketP': 'روی یه نامه‌ی ناشناس خرجش کن تا ببینی کی فرستاده. روز ۵ فصل یکی بهت می‌رسه.', 'px.pSkinsH': '۳ اسکین مخصوص', 'px.pSkinsP': 'پس‌زمینه‌های ابر، شفق و شب برای کارت‌هات؛ روز ۷، ۱۸ و ۲۷.', 'px.pLookH': 'رنگ و قاب کارت', 'px.pLookP': 'برای کارت پیکوپست رنگ و قاب دلخواه انتخاب کن.', 'px.skinsH': 'اسکین‌هایی که می‌گیری', 'px.skinsP': 'همین‌طوری روی کارتت دیده می‌شن.', 'px.skinDay': 'روز {n}', 'px.tkH': 'بلیت طلایی چطور کار می‌کنه', 'px.tk1': 'یه نامه‌ی ناشناس بهت می‌رسه.', 'px.tk2': 'دکمه‌ی «بلیت طلایی» رو می‌زنی و یه بلیت خرج می‌کنی.', 'px.tk3': 'می‌بینی کی فرستاده؛ فرستنده هم خبردار می‌شه.', 'px.tkNote': 'الان {n} بلیت داری. فقط تو سرورهایی کار می‌کنه که ادمین اجازه داده.', 'px.cmpH': 'رایگان یا پیکوپس', 'px.cmpFree': 'رایگان', 'px.cmpGift': 'هدیه‌ی روزانه', 'px.cmpGiftF': 'هر {e} روز {c} سکه', 'px.cmpGiftP': 'هر ۲ روز {n} سکه', 'px.cmpMonth': 'سکه در ماه', 'px.cmpTicket': 'بلیت طلایی', 'px.cmpTicketP': 'یکی روز ۵', 'px.cmpSkins': 'اسکین مخصوص', 'px.cmpLook': 'رنگ و قاب کارت', 'px.taken': 'امروز رو گرفتی', 'px.freeModal': 'روز {n}', 'px.freeGot': '{n} سکه گرفتی.', 'px.freeNone': 'امروز ثبت شد. هر {e} روز سکه می‌گیری.', 'px.bought': 'پیکوپس مال توئه!', 'px.poor': 'سکه‌ات کافی نیست؛ اول سکه بخر.', 'w.closed': 'فروشگاه الان بسته‌ست.', 'w.noWay': 'راه پرداخت نداره', 'w.reviewNote': 'سفارش‌ها اول توسط صاحب ربات بررسی می‌شن؛ بعد از تایید سکه‌ات اضافه می‌شه.', 'w.refMissing': 'شماره‌ی پیگیری رو بنویس.', 'w.sending': 'دارم سفارش رو می‌فرستم...', 'w.placedLive': 'سفارشت برای بررسی رفت.', 'w.placedNoOwner': 'سفارش ثبت شد ولی به صاحب ربات نرسید؛ تو دیسکورد بهش خبر بده.', 'w.errRefUsed': 'این شماره‌ی پیگیری قبلاً ثبت شده.', 'w.errRef': 'شماره‌ی پیگیری درست نیست.', 'w.errChanged': 'قیمت عوض شده؛ دوباره امتحان کن.', 'w.errMany': 'چند سفارش در انتظار داری؛ صبر کن بررسی بشن.', 'w.errSlow': 'خیلی سریع شد؛ چند دقیقه دیگه.', 'w.errReceipt': 'عکس رسید قابل قبول نیست.', 'srv.own': 'مال خودم', 'srv.manage': 'می‌تونم مدیریت کنم', 'srv.noneLive': 'سرور مال خودت که ربات توش باشه پیدا نشد.', 'srv.roleOwner': 'مالک', 'srv.roleManage': 'دسترسی مدیریت سرور', 'srv.liveH': 'مدیریت سرور', 'srv.liveP': 'تنظیمات سرور فعلاً تو دیسکورد انجام می‌شه. اینجا فقط سرورهایی رو می‌بینی که ربات توشونه.', 'in.old': 'این نامه قبل از اینه که سایت بتونه متن‌ها رو نشون بده. تو دیسکورد بازش کن.', 'in.replyDiscord': 'جواب دادن فعلاً تو دیسکورد انجام می‌شه.', 'soon': 'به‌زودی', 'chat.soonH': 'چت ناشناس به‌زودی میاد', 'chat.soonP': 'فعلاً قفله. تا اون موقع یه پیام ناشناس بفرست یا لینکت رو پخش کن.', 'chat.soonGo': 'رفتن به نامه‌ها', 'set.liveP': 'پروفایل و تنظیماتت. هر چی اینجا ذخیره کنی تو دیسکورد هم همین‌طوره.', 'set.syncNote': 'این صفحه به دیسکورد وصله: بعد از ذخیره، پروفایل و تنظیمات دیسکوردت هم عوض می‌شه.', 'set.avatar': 'ایموجی آواتار', 'set.anon': 'ناشناس', 'set.ageLocked': 'سن تا {n} روز دیگه قفله.', 'set.color': 'رنگ', 'set.dmFirst': 'اول پیام خصوصی', 'set.boxOnly': 'فقط اینباکس', 'set.both': 'هر دو', 'set.whereP': 'نامه‌های ناشناس کجا برسن.', 'set.saving': 'دارم ذخیره می‌کنم...', 'set.errAge': 'سن رو هر ۳۰ روز فقط یه بار می‌شه عوض کرد.', 'set.errAgeBad': 'سن باید بین ۱۳ تا ۹۹ باشه.', 'set.errBad': 'اسم یا بیو قبول نشد (لینک، منشن یا کلمه‌ی ممنوع نباشه).', 'set.synced': 'ذخیره شد. دیسکوردت هم به‌روز شد.', 'app.live': 'وصل شدی', 'app.liveT': 'سکه، پس، کد لینک، ظاهر کارت، پروفایل و نامه‌هات همون‌هایی هستن که تو دیسکورد داری. جواب دادن و فرستادن فعلاً تو دیسکورد انجام می‌شه؛ چت به‌زودی میاد.', 'app.noProfile': 'هنوز تو ربات نیستی. یه بار توی سرور پیکابو /anon رو بزن و صفحه رو تازه کن.',
     'to.looking': 'دارم دنبالش می‌گردم…', 'to.none': 'کسی با این کد توی سرورهای تو نیست.', 'to.short': 'کد کامل ۶ حرفیه.', 'to.someone': 'یه نفر', 'to.h': 'داری به {n} پیام می‌دی', 'to.paused': 'این آدم الان پیام قبول نمی‌کنه.',
     'nav.how': 'چطوری کار می‌کنه', 'nav.chat': 'چت تصادفی', 'nav.pass': 'پیکوپس', 'nav.admins': 'برای ادمین‌ها',
     demo: 'دیدن دموی پنل ←', demoShort: 'دموی پنل',
@@ -1563,7 +1573,7 @@ const T = {
     'w.h': 'کیف پول', 'w.p': 'سکه بخر؛ پیکوپس و بلیت با سکه‌ست.', 'w.balance': 'موجودی', 'w.coins': 'سکه', 'w.toman': 'با تومن', 'w.crypto': 'با کریپتو',
     'w.buyH': 'فاکتور', 'w.buyP': 'صاحب ربات پرداخت رو چک می‌کنه و سکه‌ها خودکار میان.', 'w.ok': 'ثبت سفارش', 'w.placed': 'سفارشت ثبت شد', 'w.price': 'قیمت',
     'set.h': 'تنظیمات', 'set.p': 'همه‌چی دست خودته.', 'set.lang': 'زبان', 'set.auto': 'مثل سرور', 'set.msgs': 'دریافت نامه', 'set.msgsP': 'لینک و پیام‌ها', 'set.where': 'صندوقت کجا باشه',
-    'set.thread': 'ترد شخصی', 'set.dm': 'دایرکت', 'set.profile': 'پروفایل ناشناس', 'set.profileP': 'هم‌صحبت تو چت تصادفی این‌ها رو می‌بینه؛ اسم واقعیت هیچ‌وقت.',
+    'set.thread': 'ترد شخصی', 'set.dm': 'دایرکت', 'set.profile': 'پروفایل ناشناس', 'set.profileP': 'بقیه این‌ها رو روی پیام‌هات می‌بینن؛ اسم واقعیت هیچ‌وقت.',
     'set.nick': 'لقب', 'set.age': 'سن', 'set.gender': 'جنسیت', 'set.none': 'نگم', 'set.bio': 'یه خط درباره‌ت', 'set.save': 'ذخیره',
     'srv.h': 'سرورهام', 'srv.p': 'سرورهایی که Manage Server داری.', 'srv.none': 'سروری پیدا نشد', 'srv.noneP': 'وقتی ادمین یه سرور باشی و ربات اونجا باشه، این‌جا میاد.',
     'srv.home': 'خانه', 'srv.limits': 'محدودیت‌ها', 'srv.features': 'امکانات', 'srv.roles': 'نقش‌ها', 'srv.shop': 'فروشگاه و فیلتر',
@@ -1585,7 +1595,7 @@ const T = {
     'sh.err': 'Couldn’t reach the bot. Nothing was charged.', 'sh.poorT': 'Not enough coins.', 'sh.haveT': 'You already have this.',
     'cl.h': 'My collection', 'cl.p': 'Everything you own. Take a piece from each theme and mix; Discord shows the same.', 'cl.wear': 'Wear', 'cl.synced': 'Changed in Discord too', 'cl.toShop': 'Shop', 'cl.toMine': 'My collection',
     'cl.cardP': 'Card background', 'cl.borderP': 'Frame around the card', 'cl.btnP': 'Button shapes', 'cl.fontP': 'Title font',
-    'app.busy': 'One moment...', 'app.opening': 'Opening your panel...', 'app.toDiscord': 'Going to Discord...', 'in.soon': 'Sending letters from the site is not connected yet; send from Discord for now.', 'in.liveEmpty': 'Your letters still arrive in Discord; they will show here later.', 'pass.already': 'You already took today.', 'link.slow': 'Too quick, try again in a few minutes.', 'link.cardH': 'Your link card', 'link.cardP': 'The one people see in Discord.', 'link.cardMore': 'Fine tune', 'px.locked': 'peakopass only', 'px.next': 'Next gift in', 'px.resets': 'Opens every day at 12:30 Iran time · for you: {t}', 'px.daysLeft': '{n} days left', 'px.level': 'Level {n} of 30', 'px.price': '{n} coins', 'px.pitchH': 'Unlock peakopass', 'px.pitchP': '30 days of daily gifts, a golden ticket, 3 exclusive skins and your own card colour and frame.', 'px.buy': 'Get peakopass · {n} coins', 'px.getCoins': 'Get coins', 'px.freeH': 'Free daily gift', 'px.freeP': 'Even without the pass, come by every day: {c} coins every {e} days, {tot} coins a month. The rest stays locked.', 'px.freeBtn': 'Take day {n} gift', 'px.freeDay': 'Day {n} of {m}', 'px.roadH': 'Season road', 'px.roadLocked': 'The peakopass road is for members', 'px.perks': 'What peakopass gives you', 'px.pCoinsH': 'Daily coins', 'px.pCoinsP': '{n} coins every 2nd day; {tot} coins a season.', 'px.pTicketH': 'Golden ticket', 'px.pTicketP': 'Spend it on an anonymous letter to see who sent it. You get one on day 5 of the season.', 'px.pSkinsH': '3 exclusive skins', 'px.pSkinsP': 'Cloud, Aurora and Night backgrounds for your cards, on days 7, 18 and 27.', 'px.pLookH': 'Card colour and frame', 'px.pLookP': 'Pick your own colour and frame for your pass card.', 'px.skinsH': 'Skins you can earn', 'px.skinsP': 'This is how they look on your card.', 'px.skinDay': 'Day {n}', 'px.tkH': 'How the golden ticket works', 'px.tk1': 'An anonymous letter reaches you.', 'px.tk2': 'Press “Golden ticket” and spend one.', 'px.tk3': 'You see who sent it; the sender is told.', 'px.tkNote': 'You have {n} ticket(s) now. It works only in servers where the admin allows it.', 'px.cmpH': 'Free or peakopass', 'px.cmpFree': 'Free', 'px.cmpGift': 'Daily gift', 'px.cmpGiftF': '{c} coins every {e} days', 'px.cmpGiftP': '{n} coins every 2nd day', 'px.cmpMonth': 'Coins a month', 'px.cmpTicket': 'Golden ticket', 'px.cmpTicketP': 'One on day 5', 'px.cmpSkins': 'Exclusive skins', 'px.cmpLook': 'Card colour and frame', 'px.taken': 'Taken today', 'px.freeModal': 'Day {n}', 'px.freeGot': 'You got {n} coins.', 'px.freeNone': 'Counted for today. Every {e} days brings coins.', 'px.bought': 'peakopass is yours!', 'px.poor': 'Not enough coins; get coins first.', 'w.closed': 'The shop is closed right now.', 'w.noWay': 'No way to pay', 'w.reviewNote': 'Orders are checked by the bot owner first; the coins arrive once approved.', 'w.refMissing': 'Write the reference first.', 'w.sending': 'Sending your order...', 'w.placedLive': 'Your order went in for review.', 'w.placedNoOwner': 'Order saved, but the owner could not be reached; tell them in Discord.', 'w.errRefUsed': 'That reference was already used.', 'w.errRef': 'That reference does not look right.', 'w.errChanged': 'The price changed; try again.', 'w.errMany': 'You have orders waiting; let them be checked first.', 'w.errSlow': 'Too quick; try again in a few minutes.', 'w.errReceipt': 'That receipt picture is not accepted.', 'srv.own': 'Mine', 'srv.manage': 'I can manage', 'srv.noneLive': 'No server of yours with the bot in it was found.', 'srv.roleOwner': 'Owner', 'srv.roleManage': 'Manage Server permission', 'srv.liveH': 'Server settings', 'srv.liveP': 'Server settings are done in Discord for now. This list only shows servers the bot is in.', 'in.old': 'This letter came before the site could show texts. Open it in Discord.', 'in.replyDiscord': 'Replying is done in Discord for now.', 'app.live': 'Connected', 'app.liveT': 'Your coins, pass, link code and card look are the same ones you have in Discord. Letters and chat are not connected yet.', 'app.noProfile': 'You’re not in the bot yet. Use /anon once in a server with peekaboo, then refresh.',
+    'app.busy': 'One moment...', 'app.opening': 'Opening your panel...', 'app.toDiscord': 'Going to Discord...', 'in.soon': 'Sending letters from the site is not connected yet; send from Discord for now.', 'in.liveEmpty': 'Your letters still arrive in Discord; they will show here later.', 'pass.already': 'You already took today.', 'link.slow': 'Too quick, try again in a few minutes.', 'link.cardH': 'Your link card', 'link.cardP': 'The one people see in Discord.', 'link.cardMore': 'Fine tune', 'px.locked': 'peakopass only', 'px.next': 'Next gift in', 'px.resets': 'Opens every day at 12:30 Iran time · for you: {t}', 'px.daysLeft': '{n} days left', 'px.level': 'Level {n} of 30', 'px.price': '{n} coins', 'px.pitchH': 'Unlock peakopass', 'px.pitchP': '30 days of daily gifts, a golden ticket, 3 exclusive skins and your own card colour and frame.', 'px.buy': 'Get peakopass · {n} coins', 'px.getCoins': 'Get coins', 'px.freeH': 'Free daily gift', 'px.freeP': 'Even without the pass, come by every day: {c} coins every {e} days, {tot} coins a month. The rest stays locked.', 'px.freeBtn': 'Take day {n} gift', 'px.freeDay': 'Day {n} of {m}', 'px.roadH': 'Season road', 'px.roadLocked': 'The peakopass road is for members', 'px.perks': 'What peakopass gives you', 'px.pCoinsH': 'Daily coins', 'px.pCoinsP': '{n} coins every 2nd day; {tot} coins a season.', 'px.pTicketH': 'Golden ticket', 'px.pTicketP': 'Spend it on an anonymous letter to see who sent it. You get one on day 5 of the season.', 'px.pSkinsH': '3 exclusive skins', 'px.pSkinsP': 'Cloud, Aurora and Night backgrounds for your cards, on days 7, 18 and 27.', 'px.pLookH': 'Card colour and frame', 'px.pLookP': 'Pick your own colour and frame for your pass card.', 'px.skinsH': 'Skins you can earn', 'px.skinsP': 'This is how they look on your card.', 'px.skinDay': 'Day {n}', 'px.tkH': 'How the golden ticket works', 'px.tk1': 'An anonymous letter reaches you.', 'px.tk2': 'Press “Golden ticket” and spend one.', 'px.tk3': 'You see who sent it; the sender is told.', 'px.tkNote': 'You have {n} ticket(s) now. It works only in servers where the admin allows it.', 'px.cmpH': 'Free or peakopass', 'px.cmpFree': 'Free', 'px.cmpGift': 'Daily gift', 'px.cmpGiftF': '{c} coins every {e} days', 'px.cmpGiftP': '{n} coins every 2nd day', 'px.cmpMonth': 'Coins a month', 'px.cmpTicket': 'Golden ticket', 'px.cmpTicketP': 'One on day 5', 'px.cmpSkins': 'Exclusive skins', 'px.cmpLook': 'Card colour and frame', 'px.taken': 'Taken today', 'px.freeModal': 'Day {n}', 'px.freeGot': 'You got {n} coins.', 'px.freeNone': 'Counted for today. Every {e} days brings coins.', 'px.bought': 'peakopass is yours!', 'px.poor': 'Not enough coins; get coins first.', 'w.closed': 'The shop is closed right now.', 'w.noWay': 'No way to pay', 'w.reviewNote': 'Orders are checked by the bot owner first; the coins arrive once approved.', 'w.refMissing': 'Write the reference first.', 'w.sending': 'Sending your order...', 'w.placedLive': 'Your order went in for review.', 'w.placedNoOwner': 'Order saved, but the owner could not be reached; tell them in Discord.', 'w.errRefUsed': 'That reference was already used.', 'w.errRef': 'That reference does not look right.', 'w.errChanged': 'The price changed; try again.', 'w.errMany': 'You have orders waiting; let them be checked first.', 'w.errSlow': 'Too quick; try again in a few minutes.', 'w.errReceipt': 'That receipt picture is not accepted.', 'srv.own': 'Mine', 'srv.manage': 'I can manage', 'srv.noneLive': 'No server of yours with the bot in it was found.', 'srv.roleOwner': 'Owner', 'srv.roleManage': 'Manage Server permission', 'srv.liveH': 'Server settings', 'srv.liveP': 'Server settings are done in Discord for now. This list only shows servers the bot is in.', 'in.old': 'This letter came before the site could show texts. Open it in Discord.', 'in.replyDiscord': 'Replying is done in Discord for now.', 'soon': 'Soon', 'chat.soonH': 'Random chat is coming soon', 'chat.soonP': 'It is locked for now. Until then, send an anonymous message or share your link.', 'chat.soonGo': 'Go to letters', 'set.liveP': 'Your profile and settings. Whatever you save here is the same in Discord.', 'set.syncNote': 'This page is connected to Discord: after you save, your Discord profile and settings change too.', 'set.avatar': 'Avatar emoji', 'set.anon': 'Anonymous', 'set.ageLocked': 'Age is locked for {n} more days.', 'set.color': 'Colour', 'set.dmFirst': 'DM first', 'set.boxOnly': 'Inbox only', 'set.both': 'Both', 'set.whereP': 'Where anonymous messages reach you.', 'set.saving': 'Saving...', 'set.errAge': 'Age can only change once every 30 days.', 'set.errAgeBad': 'Age must be between 13 and 99.', 'set.errBad': 'That name or bio was not accepted (no links, mentions or blocked words).', 'set.synced': 'Saved. Your Discord is updated too.', 'app.live': 'Connected', 'app.liveT': 'Your coins, pass, link code, card look, profile and letters are the same as in Discord. Replying and sending still happen in Discord; chat is coming soon.', 'app.noProfile': 'You’re not in the bot yet. Use /anon once in a server with peekaboo, then refresh.',
     'to.looking': 'Looking…', 'to.none': 'No one with this code in your servers.', 'to.short': 'The full code is 6 characters.', 'to.someone': 'Someone', 'to.h': 'You’re sending a message to {n}', 'to.paused': 'They aren’t taking messages right now.',
     'nav.how': 'How it works', 'nav.chat': 'Random chat', 'nav.pass': 'peakopass', 'nav.admins': 'For admins',
     demo: 'See the panel demo →', demoShort: 'Panel demo',
@@ -1685,7 +1695,7 @@ const T = {
     'w.h': 'Wallet', 'w.p': 'Buy coins; peakopass and tickets run on coins.', 'w.balance': 'Balance', 'w.coins': 'coins', 'w.toman': 'With Toman', 'w.crypto': 'With crypto',
     'w.buyH': 'Invoice', 'w.buyP': 'The bot’s owner checks the payment; coins arrive by themselves.', 'w.ok': 'Place order', 'w.placed': 'Order placed', 'w.price': 'Price',
     'set.h': 'Settings', 'set.p': 'It’s all up to you.', 'set.lang': 'Language', 'set.auto': 'Same as server', 'set.msgs': 'Receive letters', 'set.msgsP': 'Link and messages', 'set.where': 'Where your mailbox lives',
-    'set.thread': 'Private thread', 'set.dm': 'DM', 'set.profile': 'Masked profile', 'set.profileP': 'Your random chat partner sees these; never your real name.',
+    'set.thread': 'Private thread', 'set.dm': 'DM', 'set.profile': 'Masked profile', 'set.profileP': 'This is what others see on your messages; never your real name.',
     'set.nick': 'Nickname', 'set.age': 'Age', 'set.gender': 'Gender', 'set.none': 'Rather not say', 'set.bio': 'One line about you', 'set.save': 'Save',
     'srv.h': 'My servers', 'srv.p': 'Servers where you have Manage Server.', 'srv.none': 'No servers found', 'srv.noneP': 'When you admin a server that has the bot, it shows up here.',
     'srv.home': 'Home', 'srv.limits': 'Limits', 'srv.features': 'Features', 'srv.roles': 'Roles', 'srv.shop': 'Shop & filters',
@@ -2293,6 +2303,11 @@ function applyMe(data) {
   S.pass.price = data.pass.price || 500;
   S.pass.daily = data.pass.daily || 10;
   S.pass.free = data.pass.free || S.pass.free;
+  if (data.profile) {
+    S.profile = data.profile;
+    S.draft = { ...data.profile, nick: data.profile.nick || '', avatar: data.profile.avatar || '', bio: data.profile.bio || '', age: data.profile.age ?? '', lang: data.profile.lang || 'auto' };
+  }
+  if (data.options) S.options = data.options;
   if (data.code) S.link.code = data.code;
   if (data.link) S.link.on = data.link.on !== false;
 }
@@ -2444,6 +2459,50 @@ async function liveOrder(el) {
   } finally { busy(false); }
 }
 function liveServersPlaceholder() {}
+// ---- profile and settings, written to the same profile Discord reads
+const PF_LANGS = [['auto', 'auto'], ['fa', 'فارسی'], ['en', 'English']];
+function liveSettings() {
+  const d = S.draft;
+  const o = S.options || { moods: [], colors: [], genders: [] };
+  const nm = (x) => x[LANG] || x.en;
+  const mood = o.moods.find((m) => m.k === d.mood);
+  const locked = S.profile.ageLockedUntil > Date.now() && S.profile.age;
+  const days = Math.ceil((S.profile.ageLockedUntil - Date.now()) / 86400000);
+  const alias = `${d.avatar || '🎭'} ${d.nick || t('set.anon')}${mood ? ` · ${mood.emoji}` : ''}`;
+  return `${vhead(t('set.h'), t('set.liveP'))}
+    <div class="sync-note">${pic('rules')}<span>${esc(t('set.syncNote'))}</span></div>
+    <div class="grid2">
+      <div class="pane"><h3>${esc(t('set.profile'))}</h3><p class="hint">${esc(t('set.profileP'))}</p>
+        <div class="formgrid">
+          <label class="field"><span>${esc(t('set.nick'))}</span><input class="inp" data-pf-in="nick" maxlength="32" value="${esc(d.nick)}"></label>
+          <label class="field"><span>${esc(t('set.avatar'))}</span><input class="inp" data-pf-in="avatar" maxlength="4" value="${esc(d.avatar)}" placeholder="🦊"></label>
+          <label class="field"><span>${esc(t('set.age'))}</span><input class="inp num" data-pf-in="age" type="number" min="13" max="99" value="${esc(d.age ?? '')}" ${locked ? 'readonly' : ''}>${locked ? `<small class="hint">${esc(t('set.ageLocked', { n: days }))}</small>` : ''}</label>
+        </div>
+        <div class="field"><span>${esc(t('set.gender'))}</span>${seg('pf-gender', d.gender || '', [['', t('set.none')], ...o.genders.map((g) => [g.k, nm(g)])])}</div>
+        <div class="field"><span>${esc(t('chat.mood'))}</span>${seg('pf-mood', d.mood || '', [['', t('set.none')], ...o.moods.map((m) => [m.k, `${m.emoji} ${nm(m)}`])])}</div>
+        <div class="field"><span>${esc(t('set.color'))}</span><div class="swatches">${o.colors.map((c) => `<button type="button" class="swatch" aria-pressed="${d.color === c.k}" data-pf-color="${c.k}" title="${esc(nm(c))}" style="--c:#${c.hex.toString(16).padStart(6, '0')}"></button>`).join('')}</div></div>
+        <label class="field"><span>${esc(t('set.bio'))}</span><input class="inp" data-pf-in="bio" maxlength="150" value="${esc(d.bio)}"></label>
+        <div class="preview"><small>${esc(t('set.preview'))}</small><div class="pv">${pic('partner')}<div><b id="pf-alias">${esc(alias)}</b>${d.bio ? `<em>${esc(d.bio)}</em>` : ''}</div></div></div>
+      </div>
+      <div class="pane">
+        <div class="field"><span>${esc(t('set.lang'))}</span>${seg('pf-lang', d.lang || 'auto', PF_LANGS.map(([v, l]) => [v, v === 'auto' ? t('set.auto') : l]))}</div>
+        <div class="field"><span>${esc(t('set.where'))}</span>${seg('pf-delivery', d.delivery, [['auto', t('set.dmFirst')], ['box', t('set.boxOnly')], ['both', t('set.both')]])}<small class="hint">${esc(t('set.whereP'))}</small></div>
+        <div class="sw"><div><b>${esc(t('set.rules'))}</b><small>${esc(t('set.rulesP'))}</small></div><button class="btn btn-white btn-sm" data-act="rules">${esc(t('set.read'))}</button></div>
+        <div class="formfoot"><span></span><button class="btn btn-yolk" data-act="pf-save">${esc(t('set.save'))}</button></div>
+      </div>
+    </div>`;
+}
+async function saveProfile() {
+  const d = S.draft;
+  busy(true, t('set.saving'));
+  try {
+    const r = await webApi('/web/settings', { nick: d.nick, avatar: d.avatar, bio: d.bio, age: d.age === '' || d.age == null ? '' : Number(d.age), gender: d.gender || null, mood: d.mood || null, color: d.color || null, lang: d.lang || 'auto', delivery: d.delivery });
+    applyMe(r.me);
+    const bad = r.warnings || [];
+    toast(bad.length ? t(bad[0] === 'profile.ageLocked' ? 'set.errAge' : bad[0] === 'profile.ageInvalid' ? 'set.errAgeBad' : 'set.errBad') : t('set.synced'), bad.length ? undefined : 'settings');
+    renderApp();
+  } catch { toast(t('sh.err')); } finally { busy(false); }
+}
 function liveServers() {
   const filt = seg('gfilter', S.gfilter || 'own', [['own', t('srv.own')], ['manage', t('srv.manage')]]);
   const gi = (x) => `<span class="gi" ${x.icon ? `style="background-image:url('${esc(x.icon)}')"` : ''}>${x.icon ? '' : esc([...x.name][0] || '?')}</span>`;
@@ -2491,7 +2550,7 @@ function renderTabs() {
   $('#tabs').innerHTML = TABS.map(([k, im, grp]) => {
     const h = grp !== last ? `<div class="nav-h">${esc(t(`nav.${grp}`))}</div>` : '';
     last = grp;
-    return `${h}<button class="tab" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${pic(im)}<span>${esc(t(`tab.${k}`))}</span>${k === 'inbox' && unread() ? `<span class="badge">${unread()}</span>` : ''}${k === 'chat' && S.chat.st === 'live' ? '<span class="live"></span>' : ''}</button>`;
+    return `${h}<button class="tab" role="tab" aria-selected="${TAB === k}" data-tab="${k}">${pic(im)}<span>${esc(t(`tab.${k}`))}</span>${k === 'chat' ? `<span class="soonpill">${esc(t('soon'))}</span>` : ''}${k === 'inbox' && unread() ? `<span class="badge">${unread()}</span>` : ''}${k === 'chat' && S.chat.st === 'live' ? '<span class="live"></span>' : ''}</button>`;
   }).join('');
 }
 
@@ -2507,10 +2566,11 @@ const VIEWS = {
       ${mc('t-mint', t('home.inboxChip'), u ? 'letter' : 'empty', u ? t('home.inboxH', { n: u }) : t('home.inboxH0'), t('home.inboxP'), '', `<button class="btn btn-yolk btn-sm" data-tab="inbox">${esc(t('home.open'))}</button><button class="btn btn-white btn-sm" data-act="write">${esc(t('in.write'))}</button>`)}
       ${mc('t-sky', t('home.linkChip'), 'link', S.link.on ? t('home.linkH') : t('home.linkOff'), '', `<span class="code mini${S.link.on ? '' : ' off'}">${esc(S.link.code)}</span>`, `<button class="btn btn-white btn-sm" data-act="copy">${esc(t('home.copy'))}</button>`)}
       ${mc('t-lav', 'peakopass', 'walk', t('home.passH', { n: S.pass.level }), t('home.passP', { w: nextReward() }), `<div class="prog"><i style="width:${(S.pass.level / 30) * 100}%"></i></div>`, `<button class="btn ${S.pass.today ? 'btn-white' : 'btn-yolk'} btn-sm" data-act="checkin" ${S.pass.today ? 'disabled' : ''}>${esc(S.pass.today ? t('home.checked') : t('home.checkin'))}</button>`)}
-      ${mc('t-rose', t('tab.chat'), live ? 'partner' : 'lobby', live ? t('chat.liveH', { n: S.chat.partner.nick[LANG] }) : t('chat.idleH'), live ? t('chat.liveP') : t('chat.idleP'), '', `<button class="btn btn-yolk btn-sm" data-${live ? 'tab="chat"' : 'act="chat-go"'}>${esc(live ? t('chat.back') : t('chat.go'))}</button>`)}
+      ${mc('t-rose', t('tab.chat'), 'lobby', t('chat.soonH'), t('chat.soonP'), '', `<button class="btn btn-white btn-sm" disabled>${esc(t('soon'))}</button>`)}
     </div>
     <div class="hrow">
       <div class="pane"><div class="hr-h"><h3>${esc(t('home.latest'))}</h3><button class="btn btn-white btn-sm" data-tab="inbox">${esc(t('home.open'))}</button></div>
+        ${S.inbox.length ? '' : `<p class="hint">${esc(t('home.inboxH0'))}</p>`}
         ${S.inbox.slice(0, 3).map((l) => `<button class="hl" data-tab="inbox"><span class="envi" style="--tone:#a9dcc5"></span><span class="lt-t"><b>${esc(l.revealed ? L(l.who) : l.kind === 'reply' ? t('in.reply') : t('in.anon'))}</b><small>${esc(L(l.thread[l.thread.length - 1].text))}</small></span><small>${esc(ago(l.at))}</small></button>`).join('')}</div>
       <div class="pane spot"><div class="hr-h"><h3>${esc(t('home.spot'))}</h3><button class="btn btn-white btn-sm" data-tab="shop">${esc(t('sl.open'))}</button></div>
         <div class="orbs">${THEMES.map((th) => `<button class="orbb" data-shopgo="${th.id}">${pic(`theme-${th.id}`)}<b>${esc(L(th.n))}</b></button>`).join('')}</div></div>
@@ -2570,6 +2630,11 @@ const VIEWS = {
   },
 
   chat() {
+    // random chat is locked for now ("coming soon"), on the site and in the bot
+    return `${vhead(t('chat.h2'), '')}<article class="lc t-sky chat-soon"><div class="lc-top">${lockChip(t('tab.chat'))}${lockChip(t('soon'))}</div><div class="lc-body"><div><h2 class="display">${esc(t('chat.soonH'))}</h2><p>${esc(t('chat.soonP'))}</p><div class="actions"><button class="btn btn-white" disabled><span>${esc(t('soon'))}</span></button><button class="btn btn-yolk" data-tab="inbox">${esc(t('chat.soonGo'))}</button></div></div>${pic('lobby')}</div></article>`;
+  },
+
+  chatOld() {
     const c = S.chat;
     if (c.st === 'live') {
       const p = c.partner;
@@ -2695,6 +2760,7 @@ const VIEWS = {
   },
 
   settings() {
+    if (S.live && S.profile) return liveSettings();
     const s = S.set;
     const moods = ['chill', 'curious', 'happy', 'sleepy'];
     return `${vhead(t('set.h'), t('set.p'))}
@@ -2912,6 +2978,7 @@ function partnerSays(delay = 1400) {
   }, delay));
 }
 function startChat() {
+  if (true) { toast(t('soon')); return; }
   clearChat();
   const c = S.chat;
   c.st = 'search';
@@ -3011,6 +3078,7 @@ function act(name, el) {
       break;
     case 'pause': a.paused = !a.paused; renderApp(); saved(); break;
     case 'setup': toast(t('srv.setupOk'), 'admin'); break;
+    case 'pf-save': saveProfile(); break;
     case 'lpay-ok': liveOrder(el); break;
     case 'pass-buy': {
       if (!S.live) { toast(t('app.savedDemo')); break; }
@@ -3175,6 +3243,7 @@ function wireApp() {
     if (d.rep) { const [st, id] = d.rep.split(':'); const r = adminOf(S.guilds[S.gsel].id).reports.find((x) => String(x.id) === id); if (r) r.st = st; renderApp(); toast(t(st === 'muted' ? 'r.mutedT' : 'r.dismissedT'), 'mod'); return; }
     if (d.chatGender) { S.chat.gender = d.chatGender; renderApp(); return; }
     for (const k of ['lang', 'where', 'gender', 'mood']) { const v = d[`set${k[0].toUpperCase()}${k.slice(1)}`]; if (v) { S.set[k] = v; renderApp(); return; } }
+    for (const k of ['gender', 'mood', 'lang', 'delivery', 'color']) { const v = d[`pf${k[0].toUpperCase()}${k.slice(1)}`]; if (v !== undefined) { S.draft[k] = v; renderApp(); return; } }
     if (d.guild) { S.gsel = Number(d.guild); renderApp(); return; }
     if (d.gfilter !== undefined) { S.gfilter = d.gfilter; applyGuilds(); renderApp(); return; }
     if (d.gtab) { S.gtab = d.gtab; renderApp(); return; }
@@ -3199,6 +3268,11 @@ function wireApp() {
     if (el.matches('.composer textarea')) { el.style.height = 'auto'; el.style.height = `${Math.min(140, el.scrollHeight)}px`; }
     if (el.dataset.count) $(`#${el.dataset.count}`).textContent = `${el.value.length} / ${el.maxLength}`;
     if (el.classList.contains('code-in')) { el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); toLookup(el.value); }
+    if (el.dataset.pfIn) {
+      S.draft[el.dataset.pfIn] = el.value;
+      const a = $('#pf-alias');
+      if (a) { const mood = (S.options?.moods || []).find((m) => m.k === S.draft.mood); a.textContent = `${S.draft.avatar || '🎭'} ${S.draft.nick || t('set.anon')}${mood ? ` · ${mood.emoji}` : ''}`; }
+    }
     if (el.dataset.setIn) {
       S.set[el.dataset.setIn] = el.type === 'number' ? Number(el.value) || '' : el.value;
       const pv = $('.preview .pv div');
