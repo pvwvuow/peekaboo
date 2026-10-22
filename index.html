@@ -1742,7 +1742,7 @@ button.gm-pill { cursor: pointer; }
 .qs-list { padding-block: 2px; }
 
 /* ---------- v29: the season calendar ---------- */
-.pz-cal-g { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px 8px; padding-top: 14px; }
+.pz-cal-g { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 24px 10px; padding-top: 14px; }
 .cd { position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; background: #ece5f8; border: 0; padding: 0; font: inherit; color: inherit; cursor: default; }
 .cd img { width: 70%; height: 70%; object-fit: contain; pointer-events: none; }
 .cd .cd-st { width: 26%; height: 26%; border-radius: 50%; background: #cfc2f3; }
@@ -1764,6 +1764,21 @@ button.gm-pill { cursor: pointer; }
 .pv-card { display: grid; place-items: center; padding: 6px 0 10px; }
 .pv-card > * { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { .cd.season, .cd .cd-ptr { animation: none; } }
+
+/* v29b: the ticket keeps its own row (8 columns, as before); the claim card sits beside it and the 30-day calendar gets the full width underneath */
+.pz-top { grid-column: span 12; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.pz-top > .pz-ticket { flex: 2 1 540px; min-width: 0; }
+.pz-top > .pz-gift { flex: 1 1 250px; min-width: 0; }
+.pz-calbox { grid-column: span 12; padding: 18px 20px 20px; border-radius: 24px; background: #fffdf8; box-shadow: 0 0 0 1.5px #ece3fb inset; }
+.pz-calbox .pz-cal-g { padding-top: 12px; }
+@media (max-width: 1100px) {
+  .pz-cal-g { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .pz-top > .pz-ticket, .pz-top > .pz-gift { flex-basis: 100%; }
+  .pz-calbox { padding: 16px 14px 18px; }
+  .pz-cal-g { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px 8px; }
+}
 
 </style>
 </head>
@@ -3139,13 +3154,13 @@ const VIEWS = {
       return `<i class="${cls}" title="${esc(`${n} · ${member ? rewardOf(n).h : (mark ? `+${fr.coins}` : '')}`)}"></i>`;
     }).join('');
     const behind = Math.max(0, Math.min(qDay(Qd), Qd.max) - Qd.level);
-    const calCard = (note) => `<article class="pz-gift pz-cal">
+    const calCard = (note) => `<article class="pz-gift">
         <div class="pz-gh"><b>${esc(t('px.giftH'))}</b><small>${esc(member && quest ? t('q.seasonDay', { n: Math.min(qDay(Qd), 30) }) : t('px.freeDay', { n: fr.level, m: fr.cycle }))}</small></div>
-        <div class="pz-cal-g">${calHtml(calCells(member, member && quest ? Qd : null, fr, taken))}</div>
         ${note || ''}
         <button class="btn ${member && quest ? (Qd.next ? 'btn-yolk' : 'btn-white') : (taken ? 'btn-white' : 'btn-yolk')} pz-claim" data-act="checkin" ${(member && quest ? !Qd.next : taken) ? 'disabled' : ''}>${esc(member && quest ? (Qd.next ? t('q.btnClaim', { n: Qd.next.day }) : t('px.taken')) : taken ? t('px.taken') : member ? t('home.checkin') : t('px.freeBtn', { n: (fr.level % fr.cycle) + 1 }))}</button>
         ${member ? '' : `<small class="pz-free">${esc(t('px.freeLine', { c: fr.coins, tot: Math.floor(fr.cycle / fr.every) * fr.coins }))}</small>`}
       </article>`;
+    const calBig = `<section class="pz-calbox"><div class="pz-cal-g">${calHtml(calCells(member, member && quest ? Qd : null, fr, taken))}</div></section>`;
     const gift = member && quest ? calCard(behind > 1 ? `<small class="pz-behind">${esc(t('q.behind', { n: behind }))}</small>` : '') : calCard('');
     void dots;
 
@@ -3185,7 +3200,7 @@ const VIEWS = {
         ${row(t('px.cmpLook'), '—', '✓')}
       </section>`;
     const cta = member ? '' : `<section class="pz-cta"><h3>${esc(t('px.pitchH'))}</h3><p>${esc(t('px.price', { n: fmt(price) }))} · ${esc(t('px.ctaDays'))}</p><button class="btn btn-yolk" data-act="pass-buy">${esc(t('px.buy', { n: fmt(price) }))}</button></section>`;
-    return `${vhead(t('pass.h2'), t('pass.p2'))}<div class="pzw"><div class="pz">${ticket}${gift}${rail}${road}${skins}${how}${cmp}${cta}</div>${qs}</div>`;
+    return `${vhead(t('pass.h2'), t('pass.p2'))}<div class="pzw"><div class="pz"><div class="pz-top">${ticket}${gift}</div>${calBig}${rail}${road}${skins}${how}${cmp}${cta}</div>${qs}</div>`;
   },
 
   wallet() {
