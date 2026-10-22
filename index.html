@@ -1734,6 +1734,37 @@ button.gm-pill { cursor: pointer; }
   .pz-ticket.is-free .pz-chick { bottom: -4px; }
 }
 
+/* ---------- v29: quest rows keep their ring (a border cannot be clipped by the scrolling list) ---------- */
+.qr { border: 2px solid transparent; }
+.qr.next { box-shadow: none; border-color: var(--gold); }
+.qr.sel { box-shadow: none; border-color: #2b2d31; }
+.qr.next.sel { border-color: var(--gold-d); }
+.qs-list { padding-block: 2px; }
+
+/* ---------- v29: the season calendar ---------- */
+.pz-cal-g { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px 8px; padding-top: 14px; }
+.cd { position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; background: #ece5f8; border: 0; padding: 0; font: inherit; color: inherit; cursor: default; }
+.cd img { width: 70%; height: 70%; object-fit: contain; pointer-events: none; }
+.cd .cd-st { width: 26%; height: 26%; border-radius: 50%; background: #cfc2f3; }
+.cd em { position: absolute; inset-inline-start: -2px; bottom: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #2b2d31; color: #fff; font: 800 11px/18px system-ui, sans-serif; text-align: center; font-style: normal; }
+.cd.coin, .cd.final { background: #fbe9b0; }
+.cd.skin { background: #efe4ff; cursor: pointer; }
+.cd.ticket { background: #ffe0e6; }
+.cd.skin:hover { transform: scale(1.08); }
+.cd.done { background: #e1f5e9; }
+.cd.done img { opacity: .75; }
+.cd .cd-ck { position: absolute; inset-inline-end: -3px; top: -3px; width: 17px; height: 17px; border-radius: 50%; background: var(--ok, #2f9e63); }
+.cd .cd-ck::after { content: ""; position: absolute; left: 5px; top: 3px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2.4px 2.4px 0; transform: rotate(45deg); }
+.cd.future { opacity: .42; filter: saturate(.55); }
+.cd.season { box-shadow: 0 0 0 3px var(--gold-d); animation: cdblink 1.1s ease-in-out infinite; opacity: 1; filter: none; }
+@keyframes cdblink { 0%, 100% { box-shadow: 0 0 0 3px var(--gold-d); } 50% { box-shadow: 0 0 0 6px rgba(246, 207, 99, .35); } }
+.cd .cd-ptr { position: absolute; top: -17px; left: 50%; margin-left: -7px; border: 7px solid transparent; border-top: 9px solid #8e5cf0; border-bottom: 0; animation: cdptr 1.3s ease-in-out infinite; pointer-events: none; }
+@keyframes cdptr { 50% { transform: translateY(3px); } }
+.cd[data-tip]:hover::after, .cd[data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #2b2d31; color: #fff; border-radius: 8px; padding: 4px 9px; font: 700 12px/1.3 system-ui, sans-serif; z-index: 6; pointer-events: none; }
+.pv-card { display: grid; place-items: center; padding: 6px 0 10px; }
+.pv-card > * { max-width: 100%; }
+@media (prefers-reduced-motion: reduce) { .cd.season, .cd .cd-ptr { animation: none; } }
+
 </style>
 </head>
 <body>
@@ -2462,6 +2493,49 @@ const rewardOf = (n) => {
   return { img: 'walk', h: t('rw.step'), p: t('rw.stepP') };
 };
 
+
+/* ---------- v29: the season calendar (rings with the real prizes) ---------- */
+// cells: [{ n, kind: 'coin' | 'final' | 'skin' | 'ticket' | 'stone', amount, skin, done, season (this is the season day), future, ptr }]
+function calCells(member, Qd, fr, taken) {
+  if (member && Qd) {
+    const day = Math.min(qDay(Qd), Qd.max);
+    const at = Math.min(Qd.max, Math.max(1, Qd.level));
+    return Qd.quests.map((it) => {
+      const r = it.reward || {};
+      const kind = r.skin ? 'skin' : r.ticket ? 'ticket' : r.coins >= SEASON.final ? 'final' : r.coins > 0 ? 'coin' : 'stone';
+      return { n: it.day, kind, amount: r.coins || 0, skin: r.skin || '', done: it.day <= Qd.level, season: it.day === day, future: it.day > qDay(Qd), ptr: it.day === at };
+    });
+  }
+  const at = Math.min(fr.cycle, Math.max(1, fr.level + (taken ? 0 : 1)));
+  return Array.from({ length: Math.min(30, fr.cycle || 30) }, (_, i) => {
+    const n = i + 1;
+    const coin = n % fr.every === 0;
+    return { n, kind: coin ? 'coin' : 'stone', amount: coin ? fr.coins : 0, skin: '', done: n <= fr.level, season: n === fr.level + 1 && !taken, future: n > fr.level + 1, ptr: n === at };
+  });
+}
+function calHtml(cells) {
+  return cells.map((c) => {
+    const tip = c.kind === 'skin' ? t(`k.${c.skin}`) : c.kind === 'ticket' ? t('k.ticket') : c.amount ? t('px.coinsShort', { n: fmt(c.amount) }) : '';
+    const key = c.kind === 'skin' ? (SKIN_IMG[c.skin] || 'skin-cloud') : c.kind === 'ticket' ? 'item-ticket' : c.kind === 'final' ? 'coins3000' : c.kind === 'coin' ? 'coins100' : '';
+    const cls = ['cd', c.kind, c.done ? 'done' : '', c.season ? 'season' : '', c.future ? 'future' : ''].filter(Boolean).join(' ');
+    const label = `${t('px.dayN', { n: c.n })}${tip ? ` · ${tip}` : ''}`;
+    const inner = `${c.ptr ? '<u class="cd-ptr"></u>' : ''}${key ? `<img src="${img(key)}" alt="">` : '<i class="cd-st"></i>'}${c.done ? '<s class="cd-ck"></s>' : ''}<em>${c.n}</em>`;
+    return c.kind === 'skin'
+      ? `<button type="button" class="${cls}" data-prev="${esc(c.skin)}" data-tip="${esc(label)}" aria-label="${esc(label)}">${inner}</button>`
+      : `<span class="${cls}" data-tip="${esc(label)}" aria-label="${esc(label)}">${inner}</span>`;
+  }).join('');
+}
+// a look at a skin on a real card (from the calendar or the road)
+function skinPreview(k) {
+  if (!SKIN_IMG[k]) return;
+  const own = (S.pass.skins || []).includes(k);
+  const dayOf = Object.entries(SEASON.skins).find(([, v]) => v === k)?.[0];
+  modal(`<div class="pv-card">${botCard('panel', homeData(), { ...DEF_LOOK(), card: k })}</div>
+    <h3 class="display" style="text-align:center">${esc(t(`k.${k}`))}</h3>
+    <p class="mcenter">${esc(dayOf ? t('px.dayN', { n: dayOf }) : '')}${own ? ` · ${esc(t('pass.wearing'))}` : ''}</p>
+    <div class="row2"><button class="btn btn-white" data-close>${esc(t('in.cancel'))}</button>${own && S.pass.on !== k ? `<button class="btn btn-yolk" data-wear="${esc(k)}">${esc(t('pass.wear'))}</button>` : ''}</div>`, 'pv');
+}
+
 let demoRoad = { draw() {}, level: 6 };
 function showReward(n, pop = true) {
   const r = rewardOf(n);
@@ -3065,18 +3139,16 @@ const VIEWS = {
       return `<i class="${cls}" title="${esc(`${n} · ${member ? rewardOf(n).h : (mark ? `+${fr.coins}` : '')}`)}"></i>`;
     }).join('');
     const behind = Math.max(0, Math.min(qDay(Qd), Qd.max) - Qd.level);
-    const gift = member && quest
-      ? `<article class="pz-gift pz-qcard">
-        <div class="pz-gh"><b>${esc(t('q.today'))}</b><small>${esc(t('q.seasonDay', { n: qDay(Qd) }))}</small></div>
-        ${Qd.next ? `<div class="pz-qnext"><span class="qi">${qIcon(Qd.next.type)}</span><div><small>${esc(t('px.dayN', { n: Qd.next.day }))}</small><b>${esc(qText(Qd.next))}</b></div></div>${behind > 1 ? `<small class="pz-behind">${esc(t('q.behind', { n: behind }))}</small>` : ''}` : `<div class="pz-qnext"><span class="qi">🎉</span><div><b>${esc(t('q.allDone'))}</b></div></div>`}
-        <button class="btn ${Qd.next ? 'btn-yolk' : 'btn-white'} pz-claim" data-act="checkin" ${Qd.next ? '' : 'disabled'}>${esc(Qd.next ? t('q.btnClaim', { n: Qd.next.day }) : t('px.taken'))}</button>
-      </article>`
-      : `<article class="pz-gift">
-        <div class="pz-gh"><b>${esc(t('px.giftH'))}</b><small>${esc(member ? t('px.freeDay', { n: p.level, m: 30 }) : t('px.freeDay', { n: fr.level, m: fr.cycle }))}</small></div>
-        <div class="pz-dots" aria-hidden="true">${dots}</div>
-        <button class="btn ${taken ? 'btn-white' : 'btn-yolk'} pz-claim" data-act="checkin" ${taken ? 'disabled' : ''}>${esc(taken ? t('px.taken') : member ? t('home.checkin') : t('px.freeBtn', { n: (fr.level % fr.cycle) + 1 }))}</button>
+    const calCard = (note) => `<article class="pz-gift pz-cal">
+        <div class="pz-gh"><b>${esc(t('px.giftH'))}</b><small>${esc(member && quest ? t('q.seasonDay', { n: Math.min(qDay(Qd), 30) }) : t('px.freeDay', { n: fr.level, m: fr.cycle }))}</small></div>
+        <div class="pz-cal-g">${calHtml(calCells(member, member && quest ? Qd : null, fr, taken))}</div>
+        ${note || ''}
+        <button class="btn ${member && quest ? (Qd.next ? 'btn-yolk' : 'btn-white') : (taken ? 'btn-white' : 'btn-yolk')} pz-claim" data-act="checkin" ${(member && quest ? !Qd.next : taken) ? 'disabled' : ''}>${esc(member && quest ? (Qd.next ? t('q.btnClaim', { n: Qd.next.day }) : t('px.taken')) : taken ? t('px.taken') : member ? t('home.checkin') : t('px.freeBtn', { n: (fr.level % fr.cycle) + 1 }))}</button>
         ${member ? '' : `<small class="pz-free">${esc(t('px.freeLine', { c: fr.coins, tot: Math.floor(fr.cycle / fr.every) * fr.coins }))}</small>`}
       </article>`;
+    const gift = member && quest ? calCard(behind > 1 ? `<small class="pz-behind">${esc(t('q.behind', { n: behind }))}</small>` : '') : calCard('');
+    void dots;
+
     // ---- what the season hands out, one slim strip
     const chip = (img, top, name, locked) => `<div class="pz-rw${locked ? ' lk' : ''}">${pic(img)}<span><small>${esc(top)}</small><b>${esc(name)}</b></span>${locked ? lockIc : ''}</div>`;
     const day = (k) => Object.entries(SEASON.skins).find(([, v]) => v === k)[0];
@@ -3424,7 +3496,7 @@ function mountGame(q) {
     const mini = freeMode && pro ? `<img class="mini" src="${img(proKey)}" alt="">` : '';
     const bubble = soon ? '<span class="soon-t" data-soon></span>' : '';
     const proTag = freeMode && pro ? ' pro' : '';
-    return `<button type="button" class="gm-t ${status}${size}${proTag}${soon ? ' soon' : ''}${amt ? ' hasamt' : ''}${it.day === sel ? ' sel' : ''}${it.day === GM.pop ? ' fresh' : ''}" data-qday="${it.day}" style="left:${gmX(it.day)}px" aria-label="${esc(`${t('px.dayN', { n: it.day })} · ${qText(it)}`)}">${body}${amt}${mini}<b class="num">${it.day}</b>${badge}${bubble}</button>`;
+    return `<button type="button" class="gm-t ${status}${size}${proTag}${soon ? ' soon' : ''}${amt ? ' hasamt' : ''}${it.day === sel ? ' sel' : ''}${it.day === GM.pop ? ' fresh' : ''}" data-qday="${it.day}"${r.skin ? ` data-skin="${esc(r.skin)}"` : ''} style="left:${gmX(it.day)}px" aria-label="${esc(`${t('px.dayN', { n: it.day })} · ${qText(it)}`)}">${body}${amt}${mini}<b class="num">${it.day}</b>${badge}${bubble}</button>`;
   }).join('');
   $('.gm-world', el).innerHTML = `<div class="gm-props">${items.join('')}</div><i class="gm-shadow" id="gm-shadow"></i><img class="gm-chick" id="gm-chick" src="${img('game-chick0')}" alt="">${tokens}`;
   // up close: bushes that slide faster than the road
@@ -3911,11 +3983,12 @@ function wireApp() {
     if (d.open) { S.open = Number(d.open); const l = S.inbox.find((x) => x.id === S.open); if (l) { l.read = true; if (l.live) markRead(l.id); } renderApp(); return; }
     if (d.act) return act(d.act, el);
     if (d.box) { S.box = d.box; S.open = null; renderApp(); return; }
-    if (d.wear) { S.pass.on = d.wear; if (S.live) { S.shop.on.card = d.wear; syncLook(); } renderApp(); if (!S.live) saved(); return; }
+    if (d.prev) { skinPreview(d.prev); return; }
+    if (d.wear) { closeModal(); S.pass.on = d.wear; if (S.live) { S.shop.on.card = d.wear; syncLook(); } renderApp(); if (!S.live) saved(); return; }
     if (d.pay) { S.pay = d.pay; renderApp(); return; }
     if (d.reason) { $$('[data-reason]').forEach((b) => b.setAttribute('aria-pressed', b === el)); return; }
     if (d.gm) { if (d.gm === 'home') gmSelect(GM.level > 0 ? GM.level : 1); else gmStep(d.gm === 'next' ? 1 : -1); return; }
-    if (d.qday) { if (el.closest('.gm')) { gmSelect(Number(d.qday)); return; } S.qsel = Number(d.qday); renderApp(); return; }
+    if (d.qday) { if (el.closest('.gm')) { gmSelect(Number(d.qday)); if (d.skin && e.target.closest('.rw, .glow')) skinPreview(d.skin); return; } S.qsel = Number(d.qday); renderApp(); return; }
     if (d.lbuy) { liveBuyModal(d.lbuy); return; }
     if (d.buy) {
       const p = PACKS.find((x) => String(x.c) === d.buy);
