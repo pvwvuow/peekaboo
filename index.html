@@ -1295,6 +1295,21 @@ html[lang='fa'] .rar-chip { font-family: var(--fa-body); letter-spacing: 0; text
 .slide.card-pirate { background-size: cover; background-position: center 66%; }
 .slide.card-pirate .sl-h { font-family: 'Lalezar', var(--en); letter-spacing: .03em; }
 
+/* v15: loading cover, calm re-render, centered empty reader, link look */
+#busy { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(247, 242, 255, .62); backdrop-filter: blur(3px); opacity: 0; transition: opacity .18s ease; }
+#busy.on { opacity: 1; }
+#busy .busy-box { display: grid; justify-items: center; gap: 14px; padding: 26px 34px; border-radius: 26px; background: #fff; box-shadow: 0 14px 40px rgba(60, 40, 110, .18); font-weight: 700; color: var(--ink); }
+#busy .spin { width: 38px; height: 38px; border-radius: 50%; border: 5px solid #e6dcfa; border-top-color: #8e5cf0; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.view.on.still { animation: none; }
+.reader > .empty { align-self: center; justify-self: center; align-content: center; margin: auto; min-height: 320px; width: 100%; }
+.reader > .empty > * { margin-inline: auto; }
+.linklook .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.linklook .chip { border: 0; border-radius: 999px; padding: 8px 14px; background: #f1ebfb; color: var(--ink); font-weight: 700; cursor: pointer; }
+.linklook .chip.on { background: #8e5cf0; color: #fff; }
+.linklook .bcard { margin: 6px 0; }
+.reader:has(> .empty) { align-content: center; }
+
 </style>
 </head>
 <body>
@@ -1391,7 +1406,7 @@ const T = {
     'sh.err': 'به ربات وصل نشد. چیزی کم نشد.', 'sh.poorT': 'سکه‌ت کافی نیست.', 'sh.haveT': 'این رو قبلاً داری.',
     'cl.h': 'کلکسیون من', 'cl.p': 'هر چی خریدی اینجاست. از هر تم یه تکه بردار و قاطی کن؛ توی دیسکورد هم همین می‌شه.', 'cl.wear': 'بپوش', 'cl.synced': 'توی دیسکورد هم عوض شد', 'cl.toShop': 'فروشگاه', 'cl.toMine': 'کلکسیون من',
     'cl.cardP': 'پس‌زمینهٔ کارت', 'cl.borderP': 'قاب دور کارت', 'cl.btnP': 'شکل دکمه‌ها', 'cl.fontP': 'فونت عنوان',
-    'app.live': 'وصل شدی', 'app.liveT': 'سکه‌ها و ظاهر کارت‌هات همون‌هایی‌ان که توی دیسکورد داری. نامه‌ها و چت هنوز نمونه‌ان.', 'app.noProfile': 'هنوز تو ربات نیستی. یه بار توی سرور پیکابو /anon رو بزن و صفحه رو تازه کن.',
+    'app.busy': 'یه لحظه...', 'app.opening': 'دارم پنلت رو باز می‌کنم...', 'app.toDiscord': 'می‌رم سمت دیسکورد...', 'in.soon': 'نامه فرستادن از سایت هنوز وصل نشده؛ فعلاً از دیسکورد بفرست.', 'in.liveEmpty': 'نامه‌هات هنوز توی دیسکورد می‌رسن؛ این‌جا بعداً می‌آن.', 'pass.already': 'امروز رو گرفتی.', 'link.slow': 'خیلی سریع شد، چند دقیقه دیگه.', 'link.cardH': 'کارت لینک تو', 'link.cardP': 'همونی که توی دیسکورد می‌بینن.', 'link.cardMore': 'تنظیم دقیق‌تر', 'app.live': 'وصل شدی', 'app.liveT': 'سکه‌ها، پیکاپس، کد لینک و ظاهر کارتت همون‌هایی‌ان که توی دیسکورد داری. نامه‌ها و چت هنوز وصل نشدن.', 'app.noProfile': 'هنوز تو ربات نیستی. یه بار توی سرور پیکابو /anon رو بزن و صفحه رو تازه کن.',
     'to.looking': 'دارم دنبالش می‌گردم…', 'to.none': 'کسی با این کد توی سرورهای تو نیست.', 'to.short': 'کد کامل ۶ حرفیه.', 'to.someone': 'یه نفر', 'to.h': 'داری به {n} پیام می‌دی', 'to.paused': 'این آدم الان پیام قبول نمی‌کنه.',
     'nav.how': 'چطوری کار می‌کنه', 'nav.chat': 'چت تصادفی', 'nav.pass': 'پیکوپس', 'nav.admins': 'برای ادمین‌ها',
     demo: 'دیدن دموی پنل ←', demoShort: 'دموی پنل',
@@ -1514,7 +1529,7 @@ const T = {
     'sh.err': 'Couldn’t reach the bot. Nothing was charged.', 'sh.poorT': 'Not enough coins.', 'sh.haveT': 'You already have this.',
     'cl.h': 'My collection', 'cl.p': 'Everything you own. Take a piece from each theme and mix; Discord shows the same.', 'cl.wear': 'Wear', 'cl.synced': 'Changed in Discord too', 'cl.toShop': 'Shop', 'cl.toMine': 'My collection',
     'cl.cardP': 'Card background', 'cl.borderP': 'Frame around the card', 'cl.btnP': 'Button shapes', 'cl.fontP': 'Title font',
-    'app.live': 'Connected', 'app.liveT': 'Your coins and card look are the same ones you have in Discord. Letters and chat are still a sample.', 'app.noProfile': 'You’re not in the bot yet. Use /anon once in a server with peekaboo, then refresh.',
+    'app.busy': 'One moment...', 'app.opening': 'Opening your panel...', 'app.toDiscord': 'Going to Discord...', 'in.soon': 'Sending letters from the site is not connected yet; send from Discord for now.', 'in.liveEmpty': 'Your letters still arrive in Discord; they will show here later.', 'pass.already': 'You already took today.', 'link.slow': 'Too quick, try again in a few minutes.', 'link.cardH': 'Your link card', 'link.cardP': 'The one people see in Discord.', 'link.cardMore': 'Fine tune', 'app.live': 'Connected', 'app.liveT': 'Your coins, pass, link code and card look are the same ones you have in Discord. Letters and chat are not connected yet.', 'app.noProfile': 'You’re not in the bot yet. Use /anon once in a server with peekaboo, then refresh.',
     'to.looking': 'Looking…', 'to.none': 'No one with this code in your servers.', 'to.short': 'The full code is 6 characters.', 'to.someone': 'Someone', 'to.h': 'You’re sending a message to {n}', 'to.paused': 'They aren’t taking messages right now.',
     'nav.how': 'How it works', 'nav.chat': 'Random chat', 'nav.pass': 'peakopass', 'nav.admins': 'For admins',
     demo: 'See the panel demo →', demoShort: 'Panel demo',
@@ -2038,18 +2053,44 @@ function showReward(n, pop = true) {
 
 /* ---------- login with Discord ---------- */
 const TOKEN_KEY = 'pk_token';
+const dropToken = () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} try { sessionStorage.removeItem(TOKEN_KEY); } catch {} };
+
+/* ---------- "it is loading" cover: shown while the panel opens or Discord is asked ---------- */
+let busyN = 0;
+function busy(on, label) {
+  let el = $('#busy');
+  if (on) {
+    busyN += 1;
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'busy';
+      el.setAttribute('role', 'status');
+      el.innerHTML = '<div class="busy-box"><i class="spin"></i><b></b></div>';
+      document.body.appendChild(el);
+    }
+    $('b', el).textContent = label || t('app.busy');
+    requestAnimationFrame(() => el.classList.add('on'));
+  } else {
+    busyN = Math.max(0, busyN - 1);
+    if (!busyN && el) { el.classList.remove('on'); setTimeout(() => { if (!busyN) el.remove(); }, 220); }
+  }
+}
 const session = () => {
   try {
-    const s = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || 'null');
+    const s = JSON.parse(localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || 'null');
     return s && s.exp > Date.now() ? s : null;
   } catch { return null; }
 };
+let ENTERING = false;
 function login() {
+  if (ENTERING) return;
   if (session() || document.body.dataset.app === '1') return enterApp();
   if (!CONFIG.discordClientId) { enterApp({ demo: true }); toast(t('app.noClient')); return; }
   const state = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
   sessionStorage.setItem('pk_state', state);
   const q = new URLSearchParams({ client_id: CONFIG.discordClientId, response_type: 'token', redirect_uri: CONFIG.redirectUri, scope: 'identify guilds', state });
+  ENTERING = true;
+  busy(true, t('app.toDiscord'));
   location.href = `https://discord.com/oauth2/authorize?${q}`;
 }
 function readRedirect() {
@@ -2059,7 +2100,8 @@ function readRedirect() {
   sessionStorage.removeItem('pk_state');
   history.replaceState(null, '', location.pathname + location.search);
   if (!ok) return;
-  sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token: p.get('access_token'), exp: Date.now() + Number(p.get('expires_in') || 3600) * 1000 }));
+  const saved = JSON.stringify({ token: p.get('access_token'), exp: Date.now() + Number(p.get('expires_in') || 3600) * 1000 });
+  try { localStorage.setItem(TOKEN_KEY, saved); } catch { sessionStorage.setItem(TOKEN_KEY, saved); }
 }
 async function discord(path, token) {
   const r = await fetch(`https://discord.com/api/v10${path}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -2176,6 +2218,12 @@ let S = sampleState();
 let TAB = 'home';
 
 async function enterApp(opts = {}) {
+  if (ENTERING) return;
+  ENTERING = true;
+  busy(true, t('app.opening'));
+  try { await enterAppNow(opts); } finally { ENTERING = false; busy(false); }
+}
+async function enterAppNow(opts = {}) {
   document.body.dataset.app = '1';
   const s = session();
   if (!opts.keep) S = sampleState();
@@ -2199,11 +2247,18 @@ async function enterApp(opts = {}) {
         S.pass.skins = data.skins;
         S.pass.tickets = data.pass.tickets;
         S.pass.active = data.pass.until > Date.now();
-        if (data.pass.level) S.pass.level = data.pass.level;
+        S.pass.level = data.pass.level || 0;
+        S.pass.today = !!data.pass.today;
+        S.pass.days = data.pass.days || 0;
         if (data.code) S.link.code = data.code;
+        if (data.link) S.link.on = data.link.on !== false;
+        // letters and chat are not connected yet: show nothing instead of made-up people
+        S.inbox = [];
+        S.sent = [];
+        S.link.received = 0;
       }
     } catch {
-      sessionStorage.removeItem(TOKEN_KEY);
+      dropToken();
     }
   }
   document.body.classList.add('in-app');
@@ -2218,7 +2273,7 @@ function leaveApp() {
   scrollTo(0, 0);
 }
 function logout() {
-  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  try { dropToken(); } catch {}
   delete document.body.dataset.app;
   S = sampleState();
   leaveApp();
@@ -2309,7 +2364,7 @@ const VIEWS = {
         <div class="th-body" id="th-body">${open.thread.map(bubble).join('')}${open.typing ? `<div class="bub them typing"><span class="dots"><i></i><i></i><i></i></span></div>` : ''}</div>
         ${composer('reply', t('in.replyPh'))}`;
     }
-    return `${vhead(t('in.h'), t('in.p'), tools)}<div class="inbox${open ? ' reading' : ''}"><div class="letters">${list || `<div class="empty">${pic('empty')}<b>${esc(t('home.inboxH0'))}</b></div>`}</div><div class="reader thread">${reader}</div></div>`;
+    return `${vhead(t('in.h'), t('in.p'), tools)}<div class="inbox${open ? ' reading' : ''}"><div class="letters">${list || `<div class="empty">${pic('empty')}<b>${esc(t('home.inboxH0'))}</b>${S.live ? `<span>${esc(t('in.liveEmpty'))}</span>` : ''}</div>`}</div><div class="reader thread">${reader}</div></div>`;
   },
 
   link() {
@@ -2319,6 +2374,7 @@ const VIEWS = {
       <div class="lc-body"><div><span class="code${S.link.on ? '' : ' off'}">${esc(S.link.code)}</span>
         <div class="actions" style="margin-top:18px"><button class="btn btn-yolk" data-act="copy">${esc(t('home.copy'))}</button><button class="btn btn-white" data-act="newcode">${esc(t('link.new'))}</button></div></div>${pic(S.link.on ? 'link' : 'paused')}</div>
     </article>
+    ${linkLook()}
     <div class="pane">
       <div class="sw"><div><b>${esc(t('link.on'))}</b><small>${esc(t('link.onP'))}</small></div>${tog('link-on', S.link.on, t('link.on'))}</div>
       <div class="sw"><div><b>${esc(t('link.howH'))}</b><small>${esc(t('link.howP', { c: S.link.code }))}</small></div><span class="num big">${fmt(S.link.received)}</span></div>
@@ -2475,7 +2531,11 @@ const VIEWS = {
 };
 
 let appRoad = null;
+let LAST_TAB = null;
 function renderApp() {
+  const same = LAST_TAB === TAB;
+  LAST_TAB = TAB;
+  const y = same ? window.scrollY : 0;
   const keep = $('#th-body') ? $('.composer textarea')?.value : '';
   $('#me-name').textContent = S.user.name;
   $('#me-sub').textContent = S.demo && !S.live ? t('app.demo') : S.user.tag;
@@ -2487,13 +2547,14 @@ function renderApp() {
   $('#appbar-t').textContent = t(`tab.${TAB}`);
   const notice = S.live ? `<div class="notice ok"><b>${esc(t('app.live'))}</b><span>${esc(t('app.liveT'))}</span></div>` : S.noProfile ? `<div class="notice"><b>${esc(t('app.demo'))}</b><span>${esc(t('app.noProfile'))}</span></div>` : S.demo ? `<div class="notice"><b>${esc(t('app.demo'))}</b><span>${esc(t('app.demoT'))}</span></div>` : '';
   const room = TAB === 'chat' && S.chat.st === 'live';
-  $('#main').innerHTML = `${room ? '' : notice}<section class="view on${room ? ' full' : ''}" data-view="${TAB}">${VIEWS[TAB]()}</section>`;
+  $('#main').innerHTML = `${room ? '' : notice}<section class="view on${same ? ' still' : ''}${room ? ' full' : ''}" data-view="${TAB}">${VIEWS[TAB]()}</section>`;
   if (TAB === 'home') wireSlides(); else clearInterval(SL.timer);
   if (TAB === 'pass') { appRoad = road($('#road-app'), { level: S.pass.level }); appRoad.draw(); }
   const tb = $('#th-body');
   if (tb) tb.scrollTop = tb.scrollHeight;
   const ta = $('.composer textarea');
   if (ta && keep) ta.value = keep;
+  if (same && y) window.scrollTo(0, y);
 }
 function go(tab) {
   TAB = tab;
@@ -2528,9 +2589,24 @@ const saved = () => toast(S.demo ? t('app.savedDemo') : t('app.saved'), 'setting
 const inviteUrl = () => CONFIG.inviteUrl || (CONFIG.discordClientId ? `https://discord.com/oauth2/authorize?client_id=${CONFIG.discordClientId}&scope=bot%20applications.commands&permissions=${CONFIG.invitePermissions}` : '#');
 
 /* ---------- panel actions ---------- */
-function checkin() {
+async function checkin() {
   const p = S.pass;
   if (p.today || p.level >= 30) return;
+  if (S.live) {
+    if (checkin.busy) return;
+    checkin.busy = true;
+    try {
+      const r = await webApi('/web/checkin', {});
+      const me = r.me;
+      S.coins = me.coins; S.pass.level = me.pass.level; S.pass.today = true; S.pass.days = me.pass.days; S.pass.tickets = me.pass.tickets; S.pass.skins = me.skins;
+      renderApp();
+      const rw = rewardOf(r.level);
+      modal(`${pic(rw.img)}<h3 class="display">${esc(t('home.passH', { n: r.level }))}</h3><p class="mcenter">${esc(t('pass.got', { w: rw.h }))}</p><div class="row2"><button class="btn btn-yolk" data-close>OK</button></div>`);
+    } catch (e) {
+      if (e.status === 409) { S.pass.today = true; renderApp(); toast(t('pass.already')); } else toast(t('sh.err'));
+    } finally { checkin.busy = false; }
+    return;
+  }
   p.level += 1;
   p.today = true;
   p.days = Math.max(0, p.days - 1);
@@ -2538,7 +2614,6 @@ function checkin() {
   if (k === 'coins') S.coins += 10;
   if (k === 'ticket') p.tickets += 1;
   if (SKIN_IMG[k] && !p.skins.includes(k)) p.skins.push(k);
-  api('/web/checkin', {}).catch(() => {});
   const r = rewardOf(p.level);
   renderApp();
   modal(`${pic(r.img)}<h3 class="display">${esc(t('home.passH', { n: p.level }))}</h3><p class="mcenter">${esc(t('pass.got', { w: r.h }))}</p><div class="row2"><button class="btn btn-yolk" data-close>OK</button></div>`);
@@ -2596,12 +2671,22 @@ function act(name, el) {
       modal(`${pic('link')}<h3 class="display">${esc(t('link.new'))}</h3><p class="mcenter">${esc(t('link.newQ'))}</p><div class="row2"><button class="btn btn-white" data-close>${esc(t('in.cancel'))}</button><button class="btn btn-yolk" data-act="newcode-ok">${esc(t('link.new'))}</button></div>`);
       break;
     case 'newcode-ok':
-      S.link.code = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
       closeModal();
+      if (S.live) {
+        busy(true, t('app.busy'));
+        webApi('/web/code/new', {}).then((r) => { S.link.code = r.code; renderApp(); toast(t('link.newOk'), 'link'); }).catch((e) => toast(e.status === 429 ? t('link.slow') : t('sh.err'))).finally(() => busy(false));
+        break;
+      }
+      S.link.code = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
       renderApp();
       toast(t('link.newOk'), 'link');
       break;
-    case 'link-on': S.link.on = !S.link.on; renderApp(); saved(); break;
+    case 'link-on':
+      S.link.on = !S.link.on;
+      renderApp();
+      if (S.live) webApi('/web/link', { on: S.link.on }).then(() => saved()).catch(() => { S.link.on = !S.link.on; renderApp(); toast(t('sh.err')); });
+      else saved();
+      break;
     case 'write': TAB = 'inbox'; S.box = 'write'; S.open = null; drawer(false); renderApp(); $('.code-in')?.focus(); break;
     case 'box-in': S.box = 'in'; renderApp(); break;
     case 'close-letter': S.open = null; renderApp(); break;
@@ -2744,6 +2829,7 @@ function sendForm(form) {
     const code = form.code.value.trim().toUpperCase();
     const text = form.text.value.trim();
     if (code.length < 4 || !text) return;
+    if (S.live) { toast(t('in.soon')); return; }
     if (S.live && !S.toWho) { toast(t('to.none')); return; }
     if (S.toWho && S.toWho.open === false) { toast(t('to.paused')); return; }
     S.sent.unshift({ id: Date.now(), to: code, at: 0, text });
@@ -2784,6 +2870,7 @@ function wireApp() {
     if (d.invite !== undefined) { const u = inviteUrl(); if (u === '#') { e.preventDefault(); toast(t('app.noClient')); } else { el.href = u; el.target = '_blank'; el.rel = 'noopener'; } return; }
     if (d.support !== undefined) { if (!CONFIG.supportUrl) e.preventDefault(); else { el.href = CONFIG.supportUrl; el.target = '_blank'; } return; }
     if (!document.body.classList.contains('in-app')) return;
+    if (d.linkwear !== undefined) { linkWear(d.linkwear); return; }
     if (shopClick(d)) return;
     if (d.tab) return go(d.tab);
     if (d.open) { S.open = Number(d.open); const l = S.inbox.find((x) => x.id === S.open); if (l) l.read = true; renderApp(); return; }
@@ -3045,6 +3132,21 @@ VIEWS.closet = function () {
     <div class="scrollx">${seg('cl', sh.cl || 'own', [['own', t('cl.own')], ['all', t('cl.all')]])}</div>
     <div class="shop-grid"><div class="themes">${rows}</div>${lookAside()}</div>`;
 };
+function linkLook() {
+  const worn = (th) => PARTS.some((p) => owns(`${th}:${p}`));
+  const mine = THEMES.filter((th) => worn(th.id));
+  const on = S.shop.on;
+  const chip = (id, label) => `<button class="chip${(id === 'def' ? PARTS.every((p) => on[p] === 'def') : PARTS.some((p) => on[p] === id)) ? ' on' : ''}" data-linkwear="${id}">${esc(label)}</button>`;
+  return `<section class="pane linklook"><div class="crow-h"><h3>${esc(t('link.cardH'))}</h3><small>${esc(t('link.cardP'))}</small></div>
+    ${botCard('share', shareData(), on)}
+    <div class="chips">${chip('def', t('sh.def'))}${mine.map((th) => chip(th.id, L(th.n))).join('')}</div>
+    <div class="actions"><button class="btn btn-white btn-sm" data-tab="closet">${esc(t('link.cardMore'))}</button><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button></div></section>`;
+}
+function linkWear(id) {
+  PARTS.forEach((p) => { if (id === 'def') S.shop.on[p] = 'def'; else if (owns(`${id}:${p}`)) S.shop.on[p] = id; });
+  renderApp();
+  syncLook();
+}
 function syncLook() {
   if (!S.live) return;
   webApi('/web/look', { look: S.shop.on }).then((r) => { if (r?.look) S.shop.on = r.look; }).catch(() => toast(t('sh.err')));
