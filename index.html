@@ -5273,7 +5273,7 @@ async function ownerApply() {
   OWNER.applying = true; g.result = null; ownerRender('apply');
   try {
     let result;
-    if (S.live) result = (await webApi('/web/owner/channels', { guild: g.id, kinds, channels: picks, lang: LANG }))?.result || null;
+    if (S.live) result = (await webApi(`/web/owner/channels?guild=${encodeURIComponent(g.id)}`, { guild: g.id, kinds, channels: picks, lang: LANG }))?.result || null;
     else result = { created: kinds.filter((k) => !g.kinds.find((x) => x.kind === k)?.exists), existing: kinds.filter((k) => g.kinds.find((x) => x.kind === k)?.exists), errors: [] };
     const failed = new Set((result?.errors || []).map((x) => x.kind));
     // what worked is done; what failed stays on the page so one more press of Apply tries it again
