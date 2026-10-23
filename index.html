@@ -2799,6 +2799,7 @@ function applyMe(data) {
   S.coins = data.coins;
   S.shop.own = data.own;
   S.paused = Array.isArray(data.paused) ? data.paused : [];
+  S.offer = data.prices && data.prices.offer ? data.prices.offer : null;
   S.shop.on = data.look;
   S.pass.skins = data.skins;
   S.pass.tickets = data.pass.tickets;
@@ -4157,8 +4158,8 @@ const THEMES = [
   { id: 'polar', rarity: 'legendary', n: { fa: 'شفق قطبی', en: 'Aurora' }, d: { fa: 'پرده‌های سبز و بنفش شفق قطبی بالای دریاچهٔ یخ‌زده و قله‌های برفی، با یه چادر گرم و آتیش کوچیک کنارش. قاب یخی با موج نور، و دور عکس پروفایلت حلقهٔ شفق.', en: 'Green and violet curtains of aurora above a frozen lake and snowy peaks, with a warm tent and a small campfire. An icy frame with light waves, and an aurora ring around your picture.' } },
   { id: 'isfahan', rarity: 'legendary', n: { fa: 'شب اصفهان', en: 'Isfahan Night' }, d: { fa: 'حیاط شبانهٔ مسجد با گنبد فیروزه‌ای، فانوس‌های آویزان و حوض آینه‌وار. قاب کاشی لاجوردی با طاق‌نما، و دور عکس پروفایلت ستارهٔ ختمی.', en: 'A night courtyard under a turquoise dome, lanterns and a mirror pool. A lapis tile frame with a mihrab arch, and a Khatam star around your picture.' } },
 ];
-const LEG = PKC.TH.PREMIUM;
-const rar = (id) => PKC.TH.rarityOf(id);
+const LEG = { ...PKC.TH.PREMIUM };
+const rar = (id) => (LEG[id] ? LEG[id].tier : 'common');
 const pp = (theme, part) => (LEG[theme] ? LEG[theme].parts[part] : PART_PRICE[part]);
 const packBase = (theme) => (LEG[theme] ? LEG[theme].pack : PACK_PRICE);
 const isLeg = (id) => !!LEG[id];
@@ -4280,33 +4281,463 @@ function lookAside() {
     <button class="btn btn-white btn-sm" data-tab="${TAB === 'closet' ? 'shop' : 'closet'}">${esc(t(TAB === 'closet' ? 'cl.toShop' : 'cl.toMine'))}</button>
   </aside>`;
 }
-VIEWS.shop = function () {
-  const sh = S.shop;
-  const cat = sh.cat;
-  const bl = bundleLeft();
-  const bundle = `<article class="lc t-lav bundle" id="th-all">
-    <div class="lc-top">${lockChip(t('sh.bundleChip'))}${lockChip(t('sh.pieces', { n: THEMES.length * 4 }))}</div>
-    <div class="lc-body"><div><h2 class="display">${esc(t('sh.bundleH'))}</h2><p>${esc(t('sh.bundleP', { t: THEMES.length, p: THEMES.length * 4 }))}</p>
-      <div class="actions">${bl.length ? `<button class="btn btn-yolk" data-sbuy="all">${esc(t('sh.buy'))} ${coin(bundlePrice())}</button><s class="was num">${fmt(THEMES.reduce((s, th) => s + fullPrice(allKeys(th.id)), 0))}</s>` : `<span class="stchip st-g">${esc(t('sh.ownedAll'))}</span>`}</div></div>${pic('bundle')}</div>
-  </article>`;
-  const shown = THEMES.filter((th) => (sh.theme || 'pirate') === 'all' || (sh.theme || 'pirate') === th.id);
-  const chips = `<div class="scrollx"><div class="sth-row" role="tablist">${[...THEMES.map((th) => [th.id, th]), ['all', null]].map(([id, th]) => `<button type="button" class="sth${isLeg(id) ? ` ${rar(id)}` : ''}" role="tab" aria-selected="${(sh.theme || 'pirate') === id}" data-sth="${id}">${th ? `${pic(`theme-${id}`)}<span>${esc(L(th.n))}</span>${isLeg(id) ? '<i class="star">★</i>' : ''}` : `<span>${esc(t('sh.all'))}</span>`}</button>`).join('')}</div></div>`;
-  const themes = shown.map((th) => {
-    const left = packLeft(th.id);
-    const parts = PARTS.filter((p) => cat === 'all' || cat === p);
-    return `<section class="pane theme${th.rarity ? ` ${th.rarity}` : ''}" id="th-${th.id}">
-      <div class="th-row">${pic(`theme-${th.id}`, 'orb')}<div class="th-txt">${th.rarity ? `<span class="rar-chip ${th.rarity}">★ ${esc(t(th.rarity === 'epic' ? 'sh.epic' : th.rarity === 'rare' ? 'sh.rare' : 'sh.legend'))}</span>` : ''}<h3>${esc(L(th.n))}</h3><p>${esc(L(th.d))}</p></div>
-        <div class="th-pack"><div class="th-buy">${eyeBtn(th.id)}${left.length ? `<button class="btn btn-yolk btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : `<span class="stchip st-g">${esc(t('sh.ownedAll'))}</span>`}</div>${left.length ? `<small>${left.length === 4 ? esc(t('sh.save', { n: fmt(fullPrice(allKeys(th.id)) - packBase(th.id)) })) : esc(t('sh.left', { n: left.length }))}</small>` : ''}</div></div>
-      <div class="ptiles${parts.length === 1 ? ' one' : ''}">${parts.map((p) => partTile(th, p)).join('')}</div>
-    </section>`;
-  }).join('');
-  return `${vhead(t('sh.h'), t('sh.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-white btn-sm" data-tab="wallet">${esc(t('sh.getCoins'))}</button>`)}
-    ${bundle}
-    <div class="shop-tools">${chips}<button type="button" class="btn ${sh.pick ? 'btn-yolk' : 'btn-white'} btn-sm" data-act="shop-pick" aria-pressed="${!!sh.pick}">${sh.pick ? ICON.check : ''}<span>${esc(t(sh.pick ? 'sh.pickOff' : 'sh.pickOn'))}</span></button></div>
-    ${sh.pick ? `<p class="hint pick-note">${esc(t('sh.pickNote'))}</p>` : ''}
-    <div class="shop-grid"><div class="themes">${themes}</div>${lookAside()}</div>
-    ${cartBar()}`;
+/* v32: theme shop in three columns (browse, my mix, product), a limited-time duo offer instead of the ten-theme bundle, peakopass ticket in the side menu. */
+/* the bot's prices for the two newest themes (PKC is older than the bot and does not know them) */
+const SX_PREM = Object.freeze({ polar: { tier: 'legendary', parts: { card: 300, border: 200, btn: 200, font: 140 }, pack: 599 }, isfahan: { tier: 'legendary', parts: { card: 300, border: 200, btn: 200, font: 140 }, pack: 599 } });
+Object.keys(SX_PREM).forEach((id) => { if (!LEG[id]) LEG[id] = SX_PREM[id]; });
+/* browse tags: art style and colour (site only, they only decide what the list shows) */
+const SX_TAGS = {
+  sakura: { style: 'soft', color: ['pink'] }, neon: { style: 'night', color: ['purple', 'blue'] }, ocean: { style: 'nature', color: ['blue'] }, forest: { style: 'nature', color: ['green'] },
+  western: { style: 'scene', color: ['warm'] }, pirate: { style: 'scene', color: ['dark', 'blue'] }, samurai: { style: 'scene', color: ['warm', 'dark'] }, room: { style: 'picture', color: ['warm'] },
+  polar: { style: 'night', color: ['green', 'purple'] }, isfahan: { style: 'scene', color: ['blue'] },
 };
+const SX_STYLES = ['soft', 'night', 'nature', 'scene', 'picture'];
+const SX_COLORS = ['pink', 'warm', 'green', 'blue', 'purple', 'dark'];
+const SX_RARS = ['common', 'rare', 'epic', 'legendary'];
+const SX_COLOR_HEX = { pink: '#f2a7c3', warm: '#f0a43a', green: '#5bb87a', blue: '#4d8fe0', purple: '#8a63d2', dark: '#2b2b3d' };
+/* the two newest themes cannot be drawn live by the older card bundle: pictures of the whole look stand in (assets/look-<theme>-panel|link.jpg) */
+const SX_STATIC = new Set(['polar', 'isfahan']);
+const sxKnown = () => new Set([...(PKC.TH.THEMES || []), ...(PKC.TH.SEASON_SKINS || [])]);
+const sxIsStatic = (id) => SX_STATIC.has(id) && !(PKC.TH.THEMES || []).includes(id);
+let SXF = (() => { try { return JSON.parse(localStorage.getItem('pk-fav') || '[]'); } catch { return []; } })();
+const sxSaveFav = () => { try { localStorage.setItem('pk-fav', JSON.stringify(SXF)); } catch { /* private mode */ } };
+function sxState() {
+  const sh = S.shop;
+  if (!sh.mix) sh.mix = { ...sh.on };
+  if (!sh.prod) sh.prod = 'panel';
+  if (!sh.f) sh.f = { style: [], color: [], rar: [], saved: false, owned: false };
+  if (!sh.theme || sh.theme === 'all') sh.theme = THEMES[0].id;
+  return sh;
+}
+const sxTagsOf = (id) => SX_TAGS[id] || { style: '', color: [] };
+function sxList() {
+  const f = sxState().f;
+  const q = String(sxState().q || '').trim().toLowerCase();
+  return THEMES.filter((th) => {
+    const tg = sxTagsOf(th.id);
+    if (q && !`${th.n.en} ${th.n.fa} ${th.id}`.toLowerCase().includes(q)) return false;
+    if (f.style.length && !f.style.includes(tg.style)) return false;
+    if (f.color.length && !tg.color.some((c) => f.color.includes(c))) return false;
+    if (f.rar.length && !f.rar.includes(rar(th.id))) return false;
+    if (f.saved && !SXF.includes(th.id)) return false;
+    if (f.owned && !PARTS.some((p) => owns(`${th.id}:${p}`))) return false;
+    return true;
+  });
+}
+function sxFocusKey(key) {
+  const k = String(key || '').replace(/"/g, '');
+  if (k) requestAnimationFrame(() => { const el = document.querySelector(`[data-sx-focus="${k}"]`); if (el) el.focus({ preventScroll: true }); });
+}
+function sxRender(focus) {
+  const y = scrollY;
+  renderApp();
+  scrollTo(0, y);
+  sxFocusKey(focus);
+}
+/* offer: two complete theme packs bought together, cheaper, for a limited time (the bot says when and how much) */
+const SX_DEMO_OFFER = { pct: 25, until: Date.now() + 5 * 86400000 };
+const sxOffer = () => { const o = S.live ? S.offer : SX_DEMO_OFFER; return o && o.pct > 0 && Number(o.until) > Date.now() ? o : null; };
+function duoInfo(what) {
+  const o = sxOffer();
+  const ids = String(what).replace(/^duo:/, '').split(',');
+  const [a, b] = ids;
+  if (!o || ids.length !== 2 || a === b || !themeOf(a) || !themeOf(b) || !packLeft(a).length || !packLeft(b).length) return null;
+  const was = packPrice(a) + packPrice(b);
+  return { keys: [...packLeft(a).map((p) => `${a}:${p}`), ...packLeft(b).map((p) => `${b}:${p}`)], price: Math.round((was * (100 - o.pct)) / 100), was, a, b };
+}
+function duoBuy(what) {
+  const d = duoInfo(what);
+  if (!d) { toast(t('sx.offerGone')); return; }
+  if (d.keys.some(isPaused)) { toast(t('sh.pausedT')); return; }
+  const short = d.price - S.coins;
+  const list = [d.a, d.b].map((id) => `<li>${pic(`theme-${id}`)}<span>${esc(L(themeOf(id).n))}</span><small>${esc(t('sh.pieces', { n: packLeft(id).length }))}</small></li>`).join('');
+  modal(`${pic('bundle')}<h3 class="display">${esc(t('sx.duoQ'))}</h3><ul class="getlist">${list}</ul>
+    <div class="inv"><div><span>${esc(t('w.price'))}</span><b>${coin(d.price)}</b></div><div><span>${esc(t('sh.oneByOne'))}</span><s class="num">${fmt(d.was)}</s></div><div><span>${esc(t('sh.after'))}</span><b class="${short > 0 ? 'neg' : ''}">${coin(S.coins - d.price)}</b></div></div>
+    ${short > 0 ? `<p class="mcenter">${esc(t('sh.noCoins', { n: fmt(short) }))}</p><div class="row2"><button class="btn btn-white" data-close>${esc(t('in.cancel'))}</button><button class="btn btn-yolk" data-close data-tab="wallet">${esc(t('sh.getCoins'))}</button></div>`
+      : `<div class="row2"><button class="btn btn-white" data-close>${esc(t('in.cancel'))}</button><button class="btn btn-yolk" data-sbuy-ok="${what}">${esc(t('sh.buy'))} ${coin(d.price)}</button></div>`}`);
+}
+async function duoBuyOk(what) {
+  const d = duoInfo(what);
+  if (!d || d.price > S.coins) return;
+  if (S.live) {
+    try {
+      const r = await webApi('/web/shop/buy', { what });
+      S.coins = r.coins; S.shop.own = r.own;
+    } catch (e) {
+      closeModal();
+      if (e.body && e.body.coins !== undefined) S.coins = e.body.coins;
+      renderApp();
+      toast(t(e.status === 402 ? 'sh.poorT' : e.status === 409 ? 'sx.offerGone' : 'sh.err'));
+      return;
+    }
+  } else { S.coins -= d.price; S.shop.own.push(...d.keys); }
+  renderApp();
+  modal(`${pic('bundle')}<h3 class="display">${esc(t('sh.bought'))}</h3><p class="mcenter">${esc(t('sh.boughtAll'))}</p><div class="row2"><button class="btn btn-white" data-close>OK</button><button class="btn btn-yolk" data-close data-tab="closet">${esc(t('cl.toMine'))}</button></div>`);
+}
+/* one card: drawn live by the card bundle, or (the two newest themes) a picture of the whole look */
+function sxCard(kind, look) {
+  const known = sxKnown();
+  const bad = PARTS.filter((p) => look[p] !== 'def' && !known.has(look[p]));
+  if (!bad.length) return botCard(kind, kind === 'share' ? shareData() : homeData(), look);
+  const same = look[PARTS[0]];
+  if (PARTS.every((p) => look[p] === same) && sxIsStatic(same)) return `<div class="bcard sx-still ${kind === 'share' ? 'slim' : ''}"><img src="assets/look-${same}-${kind === 'share' ? 'link' : 'panel'}.jpg" alt="${esc(t('sh.cardAlt'))}" loading="lazy"></div>`;
+  const clean = { ...look };
+  bad.forEach((p) => { clean[p] = 'def'; });
+  return `${botCard(kind, kind === 'share' ? shareData() : homeData(), clean)}<p class="sx-note">${esc(t('sx.noMixPreview', { n: bad.map((p) => L(themeOf(look[p]).n)).filter((v, i, a) => a.indexOf(v) === i).join(', ') }))}</p>`;
+}
+/* one piece of a theme shown on a card: the whole theme's still picture stands in for the two newest themes */
+function sxPart(kind, th, part) {
+  if (sxIsStatic(th.id)) return `${sxCard(kind, Object.fromEntries(PARTS.map((p) => [p, th.id])))}<p class="sx-note sx-note-s">${esc(t('sx.wholeLook'))}</p>`;
+  return sxCard(kind, { card: 'def', border: 'def', btn: 'def', font: 'def', [part]: th.id });
+}
+const sxMixLook = () => { const m = sxState().mix; return { card: m.card || 'def', border: m.border || 'def', btn: m.btn || 'def', font: m.font || 'def' }; };
+function sxRows() {
+  const sh = sxState();
+  const list = sxList();
+  if (!list.length) return `<p class="sx-empty">${esc(t('sx.none'))}</p>`;
+  return `<ul class="sx-rows">${list.map((th) => {
+    const have = PARTS.filter((p) => owns(`${th.id}:${p}`)).length;
+    const sel = sh.theme === th.id;
+    const fav = SXF.includes(th.id);
+    return `<li><button type="button" class="sx-row${sel ? ' sel' : ''}${isLeg(th.id) ? ` ${rar(th.id)}` : ''}" data-sx-theme="${th.id}" data-sx-focus="t:${th.id}" aria-current="${sel}">${pic(`theme-${th.id}`)}<span class="sx-row-t"><b>${esc(L(th.n))}</b><small>${esc(have ? t('sx.have', { n: have }) : t(`sx.style.${sxTagsOf(th.id).style || 'scene'}`))}</small></span>${isLeg(th.id) ? '<i class="star" aria-hidden="true">★</i>' : ''}</button><button type="button" class="sx-fav${fav ? ' on' : ''}" aria-pressed="${fav}" aria-label="${esc(t('sx.save'))}: ${esc(L(th.n))}" data-sx-fav="${th.id}" data-sx-focus="fav:${th.id}">${fav ? '♥' : '♡'}</button></li>`;
+  }).join('')}</ul>`;
+}
+function sxBrowse() {
+  const sh = sxState();
+  const f = sh.f;
+  sh.fo = sh.fo || {};
+  const countOf = (group, id) => THEMES.filter((th) => (group === 'style' ? sxTagsOf(th.id).style === id : group === 'color' ? sxTagsOf(th.id).color.includes(id) : rar(th.id) === id)).length;
+  const row = (group, id, label, dot = '') => {
+    const n = countOf(group, id);
+    const on = f[group].includes(id);
+    return `<label class="sx-fx${on ? ' on' : ''}${n ? '' : ' zero'}"><input type="checkbox" ${on ? 'checked' : ''} data-sx-f="${group}:${id}" data-sx-focus="f:${group}:${id}">${dot}<span class="sx-fx-l">${esc(label)}</span><span class="sx-fx-n">${n}</span></label>`;
+  };
+  const sect = (key, title, rows) => {
+    const act = f[key] ? f[key].length : 0;
+    return `<details class="sx-sect" data-sx-det="${key}" ${sh.fo[key] === true || (sh.fo[key] === undefined && key === 'style') ? 'open' : ''}><summary><span>${esc(title)}</span>${act ? `<em>${act}</em>` : ''}</summary><div class="sx-sect-b">${rows}</div></details>`;
+  };
+  const flag = (key, label) => `<label class="sx-fx${f[key] ? ' on' : ''}"><input type="checkbox" ${f[key] ? 'checked' : ''} data-sx-flag="${key}" data-sx-focus="flag:${key}"><span class="sx-fx-l">${esc(label)}</span></label>`;
+  const tags = [
+    ...f.style.map((id) => ['style', id, t(`sx.style.${id}`)]), ...f.color.map((id) => ['color', id, t(`sx.color.${id}`)]), ...f.rar.map((id) => ['rar', id, t(`sx.rar.${id}`)]),
+    ...(f.saved ? [['flag', 'saved', t('sx.saved')]] : []), ...(f.owned ? [['flag', 'owned', t('sx.owned')]] : []),
+  ];
+  const list = sxList();
+  return `<aside class="sx-col sx-browse" aria-label="${esc(t('sx.browse'))}">
+    <div class="sx-bh"><h3>${esc(t('sx.browse'))}</h3>${tags.length ? `<button type="button" class="sx-link" data-sx-act="clear" data-sx-focus="clear">${esc(t('sx.clear'))}</button>` : ''}</div>
+    <div class="sx-search"><label class="sx-sr" for="sx-q">${esc(t('sx.search'))}</label><input id="sx-q" type="search" data-sx-q value="${esc(sh.q || '')}" placeholder="${esc(t('sx.search'))}" autocomplete="off"></div>
+    ${tags.length ? `<div class="sx-tags" aria-label="${esc(t('sx.active'))}">${tags.map(([g, id, label]) => `<button type="button" class="sx-tag" data-sx-untag="${g}:${id}" aria-label="${esc(t('sx.remove'))}: ${esc(label)}">${esc(label)} <span aria-hidden="true">×</span></button>`).join('')}</div>` : ''}
+    ${sect('style', t('sx.byStyle'), SX_STYLES.map((s) => row('style', s, t(`sx.style.${s}`))).join(''))}
+    ${sect('color', t('sx.byColor'), SX_COLORS.map((c) => row('color', c, t(`sx.color.${c}`), `<i class="sx-dot" style="background:${SX_COLOR_HEX[c]}" aria-hidden="true"></i>`)).join(''))}
+    ${sect('rar', t('sx.byRar'), SX_RARS.map((r) => row('rar', r, t(`sx.rar.${r}`))).join(''))}
+    ${sect('mine', t('sx.mineH'), flag('saved', `♥ ${t('sx.saved')}`) + flag('owned', t('sx.owned')))}
+    <div class="sx-listh" id="sx-count" role="status" aria-live="polite">${esc(t('sx.shown', { n: list.length, m: THEMES.length }))}</div>
+    <div id="sx-rows">${sxRows()}</div>
+  </aside>`;
+}
+function sxMix() {
+  const sh = sxState();
+  const mix = sxMixLook();
+  const missing = PARTS.filter((p) => mix[p] !== 'def' && themeOf(mix[p]) && !owns(`${mix[p]}:${p}`)).map((p) => `${mix[p]}:${p}`);
+  const total = fullPrice(missing);
+  const wearable = PARTS.some((p) => (mix[p] === 'def' ? sh.on[p] !== 'def' : (owns(`${mix[p]}:${p}`) || (p === 'card' && (S.pass.skins || []).includes(mix[p]))) && sh.on[p] !== mix[p]));
+  const slots = PARTS.map((p) => {
+    const v = mix[p];
+    const th = themeOf(v);
+    const own = v === 'def' || !th || owns(`${v}:${p}`);
+    return `<li class="sx-slot${v === 'def' ? ' empty' : ''}"><span class="sx-slot-k">${esc(t(`sh.${p}`))}</span><span class="sx-slot-v">${th ? `${pic(`theme-${v}`)}<b>${esc(L(th.n))}</b>` : `<b>${esc(t(v === 'def' ? 'sh.def' : `k.${v}`))}</b>`}</span>${th ? `<span class="sx-slot-s ${own ? 'ok' : ''}">${own ? esc(t('sx.yours')) : coin(pp(v, p))}</span><button type="button" class="sx-x" aria-label="${esc(t('sx.remove'))}: ${esc(t(`sh.${p}`))}" data-sx-clear="${p}" data-sx-focus="x:${p}">×</button>` : ''}</li>`;
+  }).join('');
+  // a whole pack can be cheaper than the pieces picked from one theme
+  const hints = THEMES.map((th) => {
+    const mine = missing.filter((k) => k.startsWith(`${th.id}:`));
+    return mine.length >= 2 && packLeft(th.id).length && packPrice(th.id) < fullPrice(mine) ? { th, save: fullPrice(mine) - packPrice(th.id) } : null;
+  }).filter(Boolean)[0];
+  const scene = sh.scene || 'home';
+  return `<section class="sx-col sx-mixc" aria-label="${esc(t('sx.mix'))}">
+    <div class="sx-sticky">
+    <div class="sx-mixh"><h3>${esc(t('sx.mix'))}</h3><p>${esc(t('sx.mixP'))}</p></div>
+    <label class="sx-scene"><span>${esc(t('sx.scene'))}</span><select data-sx-scene>${SCENES.map((k) => `<option value="${k}" ${k === scene ? 'selected' : ''}>${esc(t(`sc.${k}`))}</option>`).join('')}</select></label>
+    <div id="sx-look">${dframe(sxSceneCard(scene, mix))}</div>
+    <ul class="sx-slots">${slots}</ul>
+    ${hints ? `<p class="sx-hint">${esc(t('sx.packCheaper', { w: L(hints.th.n), n: fmt(hints.save) }))} <button type="button" class="sx-link" data-sbuy="${hints.th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(hints.th.id))}</button></p>` : ''}
+    <div class="sx-buy">
+      ${missing.length ? `<button type="button" class="btn btn-yolk" data-sbuy="set:${missing.join(',')}" data-sx-focus="buy">${esc(t('sx.buyN', { n: missing.length }))} ${coin(total)}</button>` : ''}
+      <button type="button" class="btn ${missing.length ? 'btn-white' : 'btn-yolk'}" data-sx-act="wear" ${wearable ? '' : 'disabled'} data-sx-focus="wear">${esc(t('sx.wear'))}</button>
+      <button type="button" class="sx-link" data-sx-act="mixreset" data-sx-focus="mixreset">${esc(t('sx.mixReset'))}</button>
+    </div>
+    </div>
+  </section>`;
+}
+/* the scene card with a mix: same rule, newest themes only as a whole still */
+function sxSceneCard(scene, look) {
+  const known = sxKnown();
+  const bad = PARTS.filter((p) => look[p] !== 'def' && !known.has(look[p]));
+  const same = look.card;
+  if (bad.length && PARTS.every((p) => look[p] === same) && sxIsStatic(same)) return sxCard(scene === 'link' || scene === 'letter' ? 'share' : 'panel', look);
+  const clean = { ...look };
+  bad.forEach((p) => { clean[p] = 'def'; });
+  return sceneCard(scene, clean) + (bad.length ? `<p class="sx-note">${esc(t('sx.noMixPreview', { n: [...new Set(bad.map((p) => L(themeOf(look[p]).n)))].join(', ') }))}</p>` : '');
+}
+function sxOfferBox() {
+  const o = sxOffer();
+  if (!o) return '';
+  const open = THEMES.filter((th) => packLeft(th.id).length && !isPaused(th.id));
+  if (open.length < 2) return '';
+  const sh = sxState();
+  const a = open.some((x) => x.id === sh.duoA) ? sh.duoA : sh.theme && open.some((x) => x.id === sh.theme) ? sh.theme : open[0].id;
+  const b = open.some((x) => x.id === sh.duoB && x.id !== a) ? sh.duoB : open.find((x) => x.id !== a).id;
+  const d = duoInfo(`duo:${a},${b}`);
+  const days = Math.max(0, Math.ceil((Number(o.until) - Date.now()) / 86400000));
+  const opts = (cur, other) => open.filter((x) => x.id !== other).map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(L(x.n))}</option>`).join('');
+  return `<section class="sx-offer" aria-labelledby="sx-offer-h"><div class="sx-offer-t"><span class="sx-ribbon">${esc(t('sx.offerChip', { n: o.pct }))}</span><h3 id="sx-offer-h">${esc(t('sx.offerH'))}</h3><p>${esc(t('sx.offerP', { n: o.pct }))} <b>${esc(t(days > 1 ? 'sx.daysLeft' : 'sx.lastDay', { n: days }))}</b></p></div>
+    <div class="sx-offer-pick"><label><span class="sx-sr">${esc(t('sx.pack1'))}</span><select data-sx-duo="A">${opts(a, b)}</select></label><span class="sx-plus" aria-hidden="true">+</span><label><span class="sx-sr">${esc(t('sx.pack2'))}</span><select data-sx-duo="B">${opts(b, a)}</select></label>
+      <div class="sx-offer-buy">${d ? `<s class="num">${fmt(d.was)}</s> <button type="button" class="btn btn-yolk btn-sm" data-sbuy="duo:${a},${b}">${esc(t('sh.buy'))} ${coin(d.price)}</button>` : ''}</div></div></section>`;
+}
+function sxMain() {
+  const sh = sxState();
+  const th = themeOf(sh.theme);
+  if (!th) return `<section class="sx-col sx-main"><p class="sx-empty">${esc(t('sx.none'))}</p></section>`;
+  const left = packLeft(th.id);
+  const prod = sh.prod;
+  const all = Object.fromEntries(PARTS.map((p) => [p, th.id]));
+  const mixAll = PARTS.every((p) => sh.mix[p] === th.id);
+  const fav = SXF.includes(th.id);
+  const product = (kind, title, sub) => `<button type="button" class="sx-prod${prod === kind ? ' sel' : ''}" aria-pressed="${prod === kind}" data-sx-prod="${kind}" data-sx-focus="prod:${kind}"><span class="sx-prod-h"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="sx-prod-pv">${sxCard(kind, all)}</span></button>`;
+  const tiles = PARTS.map((p) => {
+    const key = `${th.id}:${p}`;
+    const own = owns(key);
+    const inMix = sh.mix[p] === th.id;
+    const worn = sh.on[p] === th.id;
+    const paused = isPaused(key);
+    const act = own
+      ? (worn ? `<span class="stchip st-g">${esc(t('sh.applied'))}</span>` : `<button type="button" class="btn btn-white btn-sm" data-apply="${key}">${esc(t('sh.apply'))}</button>`)
+      : paused ? `<span class="stchip">${esc(t('sh.pausedT'))}</span>` : `<button type="button" class="btn btn-yolk btn-sm" data-sbuy="${key}">${coin(pp(th.id, p))}</button>`;
+    return `<article class="sx-tile${inMix ? ' in' : ''}"><div class="sx-tile-pv">${sxPart(prod, th, p)}</div>
+      <div class="sx-tile-f"><div><b>${esc(t(`sh.${p}`))}</b><small>${esc(p === 'border' && (th.id === 'samurai' || th.id === 'pirate') ? t('sh.avToo') : own ? t('sh.owned') : t(`sx.part.${p}`))}</small></div>
+        <div class="sx-tile-a"><button type="button" class="btn btn-sm ${inMix ? 'btn-yolk' : 'btn-white'}" aria-pressed="${inMix}" data-sx-use="${p}:${th.id}" data-sx-focus="use:${p}">${esc(t(inMix ? 'sx.inMix' : 'sx.addMix'))}</button>${act}</div></div></article>`;
+  }).join('');
+  return `<section class="sx-col sx-main" aria-label="${esc(L(th.n))}">
+    <header class="sx-head${th.rarity ? ` ${th.rarity}` : ''}">${pic(`theme-${th.id}`, 'sx-orb')}<div class="sx-head-t">${isLeg(th.id) ? `<span class="rar-chip ${rar(th.id)}">★ ${esc(t(`sx.rar.${rar(th.id)}`))}</span>` : ''}<h2>${esc(L(th.n))}</h2><p>${esc(L(th.d))}</p></div>
+      <div class="sx-head-a"><button type="button" class="btn btn-white btn-sm" aria-pressed="${fav}" data-sx-fav="${th.id}" data-sx-focus="hfav">${fav ? '♥' : '♡'} ${esc(t(fav ? 'sx.savedOne' : 'sx.save'))}</button>
+        <button type="button" class="btn ${mixAll ? 'btn-yolk' : 'btn-white'} btn-sm" aria-pressed="${mixAll}" data-sx-whole="${th.id}" data-sx-focus="whole">${esc(t(mixAll ? 'sx.wholeIn' : 'sx.wholeAdd'))}</button>
+        ${left.length ? `<button type="button" class="btn btn-yolk btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : `<span class="stchip st-g">${esc(t('sh.ownedAll'))}</span>`}</div></header>
+    ${left.length === 4 ? `<p class="sx-save">${esc(t('sh.save', { n: fmt(fullPrice(allKeys(th.id)) - packBase(th.id)) }))}</p>` : ''}
+    ${sxOfferBox()}
+    <div class="sx-prods" role="group" aria-label="${esc(t('sx.products'))}">${product('panel', t('sx.pCard'), t('sx.pCardP'))}${product('share', t('sx.pLink'), t('sx.pLinkP'))}</div>
+    <h3 class="sx-ph">${esc(t('sx.pieces', { w: t(prod === 'panel' ? 'sx.pCard' : 'sx.pLink') }))}</h3>
+    <div class="sx-tiles">${tiles}</div>
+  </section>`;
+}
+VIEWS.shop = function () {
+  sxState();
+  return `${vhead(t('sh.h'), t('sh.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-white btn-sm" data-tab="wallet">${esc(t('sh.getCoins'))}</button>`)}
+    <div class="sx">${sxBrowse()}${sxMain()}${sxMix()}</div>`;
+};
+/* clicks of the new shop (own data attributes, nothing else listens to them) */
+document.addEventListener('click', (e) => {
+  const q = (s) => e.target.closest(s);
+  let el;
+  const sh = () => sxState();
+  if ((el = q('[data-sx-f]'))) { const [g, id] = el.dataset.sxF.split(':'); const a = sh().f[g]; const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); const l = sxList(); if (l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-flag]'))) { const f = sh().f; f[el.dataset.sxFlag] = !f[el.dataset.sxFlag]; const l = sxList(); if (l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-act="clear"]'))) { sh().f = { style: [], color: [], rar: [], saved: false, owned: false }; sh().q = ''; sxRender('t:' + sh().theme); return; }
+  if ((el = q('[data-sx-untag]'))) { const [g, id] = el.dataset.sxUntag.split(':'); if (g === 'flag') sh().f[id] = false; else sh().f[g] = sh().f[g].filter((x) => x !== id); sxRender('clear'); return; }
+  if ((el = q('[data-sx-theme]'))) { sh().theme = el.dataset.sxTheme; track('view', sh().theme); sxRender(el.dataset.sxFocus); if (matchMedia('(max-width: 1000px)').matches) { const m = document.querySelector('.sx-main'); if (m) scrollTo({ top: m.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); } return; }
+  if ((el = q('[data-sx-fav]'))) { const id = el.dataset.sxFav; const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); else SXF.push(id); sxSaveFav(); sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-prod]'))) { sh().prod = el.dataset.sxProd; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-use]'))) { const [p, id] = el.dataset.sxUse.split(':'); const m = sh().mix; m[p] = m[p] === id ? 'def' : id; if (p === 'border' && (id === 'samurai' || id === 'pirate') && m[p] === id) sh().scene = 'link'; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-whole]'))) { const id = el.dataset.sxWhole; const m = sh().mix; const all = PARTS.every((p) => m[p] === id); PARTS.forEach((p) => { m[p] = all ? 'def' : id; }); sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-clear]'))) { sh().mix[el.dataset.sxClear] = 'def'; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-act="mixreset"]'))) { sh().mix = { ...sh().on }; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-act="wear"]'))) {
+    const m = sxMixLook();
+    PARTS.forEach((p) => { if (m[p] === 'def') S.shop.on[p] = 'def'; else if (owns(`${m[p]}:${p}`) || (p === 'card' && (S.pass.skins || []).includes(m[p]))) S.shop.on[p] = m[p]; });
+    S.shop.mix = { ...S.shop.on };
+    syncLook();
+    sxRender(el.dataset.sxFocus);
+    toast(S.live ? t('cl.synced') : t('sh.applyT'), 'settings');
+  }
+}, false);
+document.addEventListener('input', (e) => {
+  const qi = e.target.closest?.('[data-sx-q]');
+  if (!qi) return;
+  sxState().q = qi.value;
+  const rows = document.getElementById('sx-rows'); const cnt = document.getElementById('sx-count');
+  if (rows) rows.innerHTML = sxRows();
+  if (cnt) cnt.textContent = t('sx.shown', { n: sxList().length, m: THEMES.length });
+}, false);
+document.addEventListener('toggle', (e) => {
+  const d = e.target;
+  if (d && d.dataset && d.dataset.sxDet) { const sh = sxState(); sh.fo = sh.fo || {}; sh.fo[d.dataset.sxDet] = d.open; }
+}, true);
+document.addEventListener('change', (e) => {
+  const sc = e.target.closest?.('[data-sx-scene]');
+  if (sc) { sxState().scene = sc.value; sxRender('scene'); return; }
+  const duo = e.target.closest?.('[data-sx-duo]');
+  if (duo) { const sh = sxState(); sh[`duo${duo.dataset.sxDuo}`] = duo.value; sxRender(); }
+}, false);
+/* peakopass: its own ticket under the name, not one more row in the list */
+const _renderTabs = renderTabs;
+renderTabs = function () {
+  _renderTabs();
+  const tabs = $('#tabs');
+  if (!tabs) return;
+  let c = $('#pass-cta');
+  if (!c) { c = document.createElement('button'); c.id = 'pass-cta'; c.type = 'button'; c.className = 'pass-cta'; c.dataset.tab = 'pass'; tabs.insertAdjacentElement('beforebegin', c); }
+  const p = S.pass || {};
+  const sub = p.active ? t('pc.level', { n: p.level || 0 }) : t('pc.free');
+  c.setAttribute('aria-current', TAB === 'pass' ? 'page' : 'false');
+  c.innerHTML = `<span class="pc-chick">${pic('walk')}</span><span class="pc-t"><b>peakopass</b><small>${esc(sub)}</small></span>${p.today ? '' : `<span class="pc-gift"><i></i>${esc(t('pc.gift'))}</span>`}<span class="pc-sheen" aria-hidden="true"></span>`;
+};
+document.head.insertAdjacentHTML('beforeend', `<style>
+.side #tabs .tab[data-tab="pass"]{display:none}
+@property --pca{syntax:'<angle>';initial-value:0deg;inherits:false}
+.pass-cta{position:relative;display:flex;align-items:center;gap:12px;width:100%;margin:10px 0 4px;padding:12px 14px 12px 12px;border:2px solid transparent;border-radius:16px;cursor:pointer;color:#fff7e0;text-align:start;font:inherit;overflow:hidden;
+ background:linear-gradient(135deg,#2b2058,#1b1438) padding-box,conic-gradient(from var(--pca),#f6c23a,#ee8526,#c79bff,#6ee7c8,#f6c23a) border-box;animation:pca 9s linear infinite;
+ -webkit-mask:radial-gradient(circle 9px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 9px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat}
+@keyframes pca{to{--pca:360deg}}
+.pass-cta:hover{filter:brightness(1.08)}
+.pass-cta:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.pass-cta[aria-current="page"]{box-shadow:0 0 0 2px #f6c23a}
+.pass-cta .pc-chick{width:40px;height:40px;border-radius:12px;background:rgba(246,194,58,.16);display:grid;place-items:center;flex:none}
+.pass-cta .pc-chick img{width:34px;height:34px;object-fit:contain}
+.pass-cta .pc-t{display:grid;gap:1px;min-width:0}
+.pass-cta .pc-t b{font:800 15px var(--en);letter-spacing:.02em;color:#ffe08a}
+.pass-cta .pc-t small{color:#cfc4ee;font-size:12.5px}
+.pass-cta .pc-gift{margin-inline-start:auto;display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:800;color:#2b2058;background:#f6c23a;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.pass-cta .pc-gift i{width:7px;height:7px;border-radius:50%;background:#2b2058;animation:pcdot 1.8s ease-in-out infinite}
+@keyframes pcdot{50%{transform:scale(1.7);opacity:.45}}
+.pass-cta .pc-sheen{position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.22) 50%,transparent 60%);transform:translateX(-120%);animation:pcsheen 6s ease-in-out infinite;pointer-events:none}
+@keyframes pcsheen{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+@media (prefers-reduced-motion:reduce){.pass-cta,.pass-cta .pc-sheen,.pass-cta .pc-gift i{animation:none}}
+@media (max-width:900px){body:not(.drawer-open) .pass-cta{display:none}}
+.sx{display:grid;grid-template-columns:240px minmax(0,1fr) 330px;gap:18px;align-items:start;color:var(--ink)}
+.sx :focus-visible{outline:3px solid var(--blurple);outline-offset:2px;border-radius:10px}
+.sx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sx-col{background:var(--white);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);min-width:0}
+.sx-browse,.sx-sticky{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.sx-sticky{display:grid;gap:12px;max-height:none;overflow:visible}
+.sx-mixc{position:sticky;top:12px;align-self:start}
+.sx-link{background:none;border:0;padding:8px 4px;color:var(--ink-2);text-decoration:underline;cursor:pointer;font:inherit;font-size:13.5px;min-height:36px}
+.sx-listh{margin:14px 0 6px;font-size:13px;color:var(--ink-2)}
+.sx-rows{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sx-rows li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px;align-items:center}
+.sx-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:52px;padding:6px 8px;border:2px solid transparent;border-radius:14px;background:transparent;color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.sx-row:hover{background:var(--paper)}
+.sx-row.sel{background:#eef0ff;border-color:var(--blurple)}
+.sx-row img{width:40px;height:40px;object-fit:contain}
+.sx-row-t{display:grid;min-width:0}
+.sx-row-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sx-row-t small{color:var(--ink-2);font-size:12.5px}
+.sx-row .star{color:#d58a00;font-style:normal}
+.sx-fav{width:40px;height:40px;border:0;border-radius:12px;background:transparent;font-size:20px;color:var(--ink-2);cursor:pointer}
+.sx-fav.on{color:#d6336c}
+.sx-fav:hover{background:var(--paper)}
+.sx-empty{margin:12px 0;color:var(--ink-2)}
+.sx-mixh h3{margin:0;font-size:19px}
+.sx-mixh p{margin:4px 0 0;color:var(--ink-2);font-size:14px;line-height:1.5}
+.sx-scene{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-2)}
+.sx-scene select{flex:1;min-height:40px;border:2px solid rgba(44,32,80,.16);border-radius:12px;padding:6px 10px;font:inherit;background:var(--white);color:var(--ink)}
+.sx-note{margin:6px 0 0;font-size:12.5px;color:#7a4a00;background:#fff3dd;border-radius:10px;padding:6px 10px;line-height:1.45}
+.sx-note-s{background:var(--paper);color:var(--ink-2)}
+.sx-still{padding:0;overflow:hidden;border-radius:14px}
+.sx-still img{display:block;width:100%;height:auto}
+.sx-slots{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.sx-slot{display:grid;grid-template-columns:70px minmax(0,1fr) auto auto;gap:8px;align-items:center;min-height:44px;padding:4px 8px;border-radius:12px;background:var(--paper)}
+.sx-slot.empty{opacity:.7}
+.sx-slot-k{font-size:12.5px;font-weight:800;color:var(--ink-2)}
+.sx-slot-v{display:flex;align-items:center;gap:6px;min-width:0}
+.sx-slot-v img{width:26px;height:26px;object-fit:contain;flex:none}
+.sx-slot-v b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.sx-slot-s{font-size:12.5px;font-weight:800;white-space:nowrap}
+.sx-slot-s.ok{color:#14573a}
+.sx-x{width:36px;height:36px;border:0;border-radius:50%;background:transparent;font-size:20px;line-height:1;color:var(--ink-2);cursor:pointer}
+.sx-x:hover{background:rgba(44,32,80,.1)}
+.sx-hint{margin:0;font-size:13.5px;color:var(--ink-2)}
+.sx-buy{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sx-buy .btn:disabled{opacity:.5;cursor:not-allowed}
+.sx-head{display:grid;grid-template-columns:72px minmax(0,1fr);gap:14px;align-items:center}
+.sx-orb{width:72px;height:72px;object-fit:contain}
+.sx-head-t h2{margin:2px 0 2px;font-size:clamp(22px,3vw,30px)}
+.sx-head-t p{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.55}
+.sx-head-a{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sx-save{margin:10px 0 0;font-size:13.5px;color:#14573a;font-weight:700}
+.sx-offer{margin:14px 0 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#2b2058,#3b2a78);color:#fff7e0;display:grid;gap:10px}
+.sx-ribbon{display:inline-block;background:#f6c23a;color:#2b2058;font-weight:800;font-size:12.5px;border-radius:999px;padding:3px 11px}
+.sx-offer h3{margin:6px 0 2px;font-size:18px;color:#fff}
+.sx-offer p{margin:0;font-size:14px;color:#e4dcff;line-height:1.5}
+.sx-offer-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.sx-offer-pick select{min-height:42px;border:0;border-radius:12px;padding:6px 12px;font:inherit;background:#fff;color:var(--ink)}
+.sx-plus{font-size:22px;font-weight:800;color:#f6c23a}
+.sx-offer-buy{margin-inline-start:auto;display:flex;align-items:center;gap:10px}
+.sx-offer-buy s{color:#cfc4ee}
+.sx-main{container-type:inline-size}
+.sx-prods{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+@container (min-width:620px){.sx-prods{grid-template-columns:1fr 1fr}.sx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sx-prod{display:grid;gap:8px;padding:10px;border:3px solid transparent;border-radius:18px;background:var(--paper);color:var(--ink);font:inherit;text-align:start;cursor:pointer;min-width:0}
+.sx-prod.sel{border-color:var(--blurple);background:#eef0ff}
+.sx-prod-h{display:grid}
+.sx-prod-h small{color:var(--ink-2);font-size:12.5px}
+.sx-prod-pv{pointer-events:none;display:block}
+.sx-ph{margin:18px 0 8px;font-size:17px}
+.sx-tiles{display:grid;grid-template-columns:1fr;gap:12px}
+.sx-tile{display:grid;gap:8px;padding:10px;border-radius:18px;background:var(--paper);border:2px solid transparent;min-width:0}
+.sx-tile.in{border-color:#f6c23a;background:#fffaf0}
+.sx-tile-pv{pointer-events:none}
+.sx-tile-f{display:grid;gap:8px}
+.sx-tile-f small{display:block;color:var(--ink-2);font-size:12.5px}
+.sx-tile-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+@media (max-width:1180px){.sx{grid-template-columns:240px minmax(0,1fr)}.sx-mixc{grid-column:1/-1;position:static}.sx-sticky{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.sx-mixh,.sx-scene,.sx-buy,.sx-hint{grid-column:1/-1}}
+@media (max-width:860px){.sx{grid-template-columns:1fr}.sx-browse{position:static;max-height:none}.sx-prods,.sx-tiles{grid-template-columns:1fr}.sx-sticky{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.sx *{transition:none!important}}
+.sx-bh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sx-bh h3{margin:0;font-size:18px}
+.sx-search input{width:100%;min-height:42px;margin-top:10px;border:2px solid rgba(44,32,80,.14);border-radius:12px;padding:6px 12px;font:inherit;background:var(--paper);color:var(--ink)}
+.sx-search input:focus{background:var(--white);border-color:var(--blurple);outline:none}
+.sx-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sx-tag{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:2px 10px;border:0;border-radius:8px;background:var(--ink);color:#fff;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.sx-tag span{opacity:.75;font-size:15px;line-height:1}
+.sx-sect{margin-top:10px;border-top:1px solid rgba(44,32,80,.1);padding-top:6px}
+.sx-sect summary{display:flex;align-items:center;justify-content:space-between;min-height:40px;cursor:pointer;list-style:none;font-size:13px;font-weight:800;letter-spacing:.04em;color:var(--ink-2);text-transform:uppercase}
+html[lang='fa'] .sx-sect summary{letter-spacing:0;text-transform:none;font-size:14px}
+.sx-sect summary::-webkit-details-marker{display:none}
+.sx-sect summary::after{content:"";width:8px;height:8px;border-inline-end:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);transition:transform .15s;margin-inline-start:8px}
+.sx-sect[open] summary::after{transform:rotate(-135deg)}
+.sx-sect summary span{flex:1}
+.sx-sect summary em{font-style:normal;background:var(--ink);color:#fff;border-radius:999px;padding:0 7px;font-size:11.5px;letter-spacing:0}
+.sx-sect-b{display:grid;gap:2px;padding-bottom:4px}
+.sx-fx{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:10px;min-height:38px;padding:2px 6px;border-radius:10px;cursor:pointer;font-size:14.5px}
+.sx-fx:hover{background:var(--paper)}
+.sx-fx.on{background:#eef0ff;font-weight:700}
+.sx-fx.zero{opacity:.45}
+.sx-fx input{width:18px;height:18px;margin:0;accent-color:var(--blurple)}
+.sx-fx:not(:has(.sx-dot)){grid-template-columns:auto minmax(0,1fr) auto}
+.sx-fx-n{color:var(--ink-2);font-size:12.5px}
+.sx-dot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+</style>`);
+Object.assign(T.en, {
+  'sx.browse': 'Browse', 'sx.search': 'Search themes', 'sx.active': 'Active filters', 'sx.mineH': 'My shop', 'sx.byStyle': 'Art style', 'sx.byColor': 'Colour', 'sx.byRar': 'Rarity', 'sx.saved': 'Saved', 'sx.owned': 'I own pieces', 'sx.clear': 'Clear filters', 'sx.shown': 'Showing {n} of {m} themes', 'sx.none': 'No theme matches these filters.',
+  'sx.style.soft': 'Soft and cute', 'sx.style.night': 'Night glow', 'sx.style.nature': 'Nature', 'sx.style.scene': 'Cinematic scene', 'sx.style.picture': 'Picture card',
+  'sx.color.pink': 'Pink', 'sx.color.warm': 'Warm', 'sx.color.green': 'Green', 'sx.color.blue': 'Blue', 'sx.color.purple': 'Purple', 'sx.color.dark': 'Dark',
+  'sx.rar.common': 'Classic', 'sx.rar.rare': 'Rare', 'sx.rar.epic': 'Epic', 'sx.rar.legendary': 'Legendary', 'sx.have': 'You own {n} of 4', 'sx.save': 'Save', 'sx.savedOne': 'Saved',
+  'sx.mix': 'My mix', 'sx.mixP': 'Pick a piece from any theme. The preview shows exactly what you would wear.', 'sx.scene': 'Show on', 'sx.yours': 'Yours', 'sx.remove': 'Remove', 'sx.buyN': 'Buy {n} missing', 'sx.wear': 'Wear my mix', 'sx.mixReset': 'Start from what I wear', 'sx.packCheaper': 'Cheaper as a pack: {w}, you save {n}.',
+  'sx.wholeAdd': 'Use whole theme in my mix', 'sx.wholeIn': 'Whole theme is in my mix', 'sx.addMix': 'Add to my mix', 'sx.inMix': 'In my mix', 'sx.products': 'Products', 'sx.pCard': 'Card', 'sx.pCardP': 'The big card in your panel', 'sx.pLink': 'Link card', 'sx.pLinkP': 'The wide card others see', 'sx.pieces': 'Pieces of the {w}',
+  'sx.part.card': 'Background picture', 'sx.part.border': 'Frame around the card', 'sx.part.btn': 'Buttons and badges', 'sx.part.font': 'Lettering',
+  'sx.noMixPreview': '{n}: this piece cannot be drawn in a mix yet, so the preview shows the default there. It still works in Discord.', 'sx.wholeLook': 'Shows the whole theme.',
+  'sx.offerChip': '{n}% off', 'sx.offerH': 'Two packs, one price', 'sx.offerP': 'Pick any two theme packs and buy them together for {n}% less.', 'sx.daysLeft': '{n} days left', 'sx.lastDay': 'Ends today', 'sx.pack1': 'First pack', 'sx.pack2': 'Second pack', 'sx.duoQ': 'Buy these two packs?', 'sx.offerGone': 'That offer is over or you already own one of the packs.',
+  'pc.free': 'Free road', 'pc.level': 'Level {n}', 'pc.gift': 'Gift',
+});
+Object.assign(T.fa, {
+  'sx.browse': 'دسته‌بندی', 'sx.search': 'جستجوی تم', 'sx.active': 'فیلترهای فعال', 'sx.mineH': 'فروشگاه من', 'sx.byStyle': 'سبک هنری', 'sx.byColor': 'رنگ', 'sx.byRar': 'کمیابی', 'sx.saved': 'ذخیره‌شده‌ها', 'sx.owned': 'تکه‌هایی که دارم', 'sx.clear': 'پاک کردن فیلترها', 'sx.shown': '{n} از {m} تم', 'sx.none': 'هیچ تمی با این فیلترها نیست.',
+  'sx.style.soft': 'نرم و بامزه', 'sx.style.night': 'شب و درخشش', 'sx.style.nature': 'طبیعت', 'sx.style.scene': 'صحنهٔ سینمایی', 'sx.style.picture': 'کارت عکسی',
+  'sx.color.pink': 'صورتی', 'sx.color.warm': 'گرم', 'sx.color.green': 'سبز', 'sx.color.blue': 'آبی', 'sx.color.purple': 'بنفش', 'sx.color.dark': 'تیره',
+  'sx.rar.common': 'معمولی', 'sx.rar.rare': 'کمیاب', 'sx.rar.epic': 'حماسی', 'sx.rar.legendary': 'افسانه‌ای', 'sx.have': '{n} از ۴ تکه رو داری', 'sx.save': 'ذخیره', 'sx.savedOne': 'ذخیره شد',
+  'sx.mix': 'ترکیب من', 'sx.mixP': 'از هر تمی یه تکه بردار. پیش‌نمایش دقیقاً همونیه که می‌پوشی.', 'sx.scene': 'نمایش روی', 'sx.yours': 'مال توئه', 'sx.remove': 'برداشتن', 'sx.buyN': 'خرید {n} تکهٔ کم', 'sx.wear': 'ترکیبم رو بپوش', 'sx.mixReset': 'از ظاهر فعلی شروع کن', 'sx.packCheaper': 'به‌صورت پک ارزون‌تره: {w}، {n} سکه کمتر.',
+  'sx.wholeAdd': 'کل تم رو بذار توی ترکیبم', 'sx.wholeIn': 'کل تم توی ترکیبمه', 'sx.addMix': 'بذار توی ترکیبم', 'sx.inMix': 'توی ترکیبمه', 'sx.products': 'محصولات', 'sx.pCard': 'کارت', 'sx.pCardP': 'کارت بزرگ توی پنل تو', 'sx.pLink': 'لینک‌کارت', 'sx.pLinkP': 'کارت عریضی که بقیه می‌بینن', 'sx.pieces': 'تکه‌های {w}',
+  'sx.part.card': 'عکس پس‌زمینه', 'sx.part.border': 'قاب دور کارت', 'sx.part.btn': 'دکمه‌ها و نشان‌ها', 'sx.part.font': 'نوع نوشته',
+  'sx.noMixPreview': '{n}: این تکه هنوز توی ترکیب قابل نمایش نیست، برای همین پیش‌نمایش اون قسمت پیش‌فرضه. توی دیسکورد درست کار می‌کنه.', 'sx.wholeLook': 'کل تم نشون داده می‌شه.',
+  'sx.offerChip': '{n}٪ تخفیف', 'sx.offerH': 'دو پک، یک قیمت', 'sx.offerP': 'هر دو پک تمی که خواستی رو با هم بخر و {n}٪ کمتر بده.', 'sx.daysLeft': '{n} روز مونده', 'sx.lastDay': 'امروز تموم می‌شه', 'sx.pack1': 'پک اول', 'sx.pack2': 'پک دوم', 'sx.duoQ': 'این دو پک رو می‌خری؟', 'sx.offerGone': 'این آفر تموم شده یا یکی از پک‌ها رو از قبل داری.',
+  'pc.free': 'مسیر رایگان', 'pc.level': 'مرحلهٔ {n}', 'pc.gift': 'هدیه',
+});
 function cartBar() {
   const sh = S.shop;
   if (!sh.pick) return '';
@@ -4359,6 +4790,7 @@ function syncLook() {
 
 /* buying */
 function shopBuy(what) {
+  if (what.startsWith('duo:')) { duoBuy(what); return; }
   let keys, title, picture, price;
   if (what !== 'all' && !what.startsWith('set:') && isPaused(what.replace(/:pack$/, ''))) { toast(t('sh.pausedT')); return; }
   if (what.startsWith('set:')) {
@@ -4388,6 +4820,7 @@ function shopBuy(what) {
       : `<div class="row2"><button class="btn btn-white" data-close>${esc(t('in.cancel'))}</button><button class="btn btn-yolk" data-sbuy-ok="${what}">${esc(t('sh.buy'))} ${coin(price)}</button></div>`}`);
 }
 async function shopBuyOk(what) {
+  if (what.startsWith('duo:')) { await duoBuyOk(what); return; }
   const isSet = what.startsWith('set:');
   const keys = isSet ? what.slice(4).split(',').filter((k) => k && !owns(k)) : what === 'all' ? THEMES.flatMap((th) => packLeft(th.id).map((p) => `${th.id}:${p}`)) : what.endsWith(':pack') ? packLeft(what.split(':')[0]).map((p) => `${what.split(':')[0]}:${p}`) : [what];
   const price = isSet ? fullPrice(keys) : what === 'all' ? bundlePrice() : what.endsWith(':pack') ? packPrice(what.split(':')[0]) : pp(what.split(':')[0], what.split(':')[1]);
@@ -4437,7 +4870,7 @@ function shopUse(v) {
 const SL = { i: 0, timer: 0, hover: false };
 function slides() {
   const items = [
-    { id: 'all', img: 'bundle', cls: 'sl-bundle', chip: t('sh.bundleChip'), h: t('sh.bundleH'), p: t('sh.bundleP', { t: THEMES.length, p: THEMES.length * 4 }), cta: t('sl.bundleC') },
+    ...(sxOffer() ? [{ id: 'shop', img: 'bundle', cls: 'sl-bundle', chip: t('sx.offerChip', { n: sxOffer().pct }), h: t('sx.offerH'), p: t('sx.offerP', { n: sxOffer().pct }), cta: t('sl.open') }] : []),
     ...THEMES.map((th) => ({ id: th.id, img: `theme-${th.id}`, cls: `card-${th.id} font-${th.id}`, chip: t('sl.new'), h: t('sl.themeH', { n: L(th.n) }), p: L(th.d), cta: t('sl.try') })),
     { id: 'shop', img: 'shop', cls: 'sl-shop', chip: t('nav.shop'), h: t('sl.mixH'), p: t('sl.mixP'), cta: t('sl.open') },
   ];
