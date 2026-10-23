@@ -4328,7 +4328,7 @@ const sxSaveFav = () => { try { localStorage.setItem('pk-fav', JSON.stringify(SX
 function sxState() {
   const sh = S.shop;
   if (!sh.mix) sh.mix = { ...sh.on };
-  if (!sh.prod) sh.prod = 'panel';
+  if (!sh.prod) sh.prod = 'all';
   if (!sh.f) sh.f = { style: [], color: [], rar: [], saved: false, owned: false };
   if (!sh.theme || sh.theme === 'all') sh.theme = THEMES[0].id;
   return sh;
@@ -4501,20 +4501,38 @@ function sxSceneCard(scene, look) {
   bad.forEach((p) => { clean[p] = 'def'; });
   return sceneCard(scene, clean) + (bad.length ? `<p class="sx-note">${esc(t('sx.noMixPreview', { n: [...new Set(bad.map((p) => L(themeOf(look[p]).n)))].join(', ') }))}</p>` : '');
 }
-function sxOfferBox() {
+let SX_TIMER = 0;
+function sxLeft(until) {
+  const ms = Math.max(0, Number(until) - Date.now());
+  const d = Math.floor(ms / 86400000); const h = Math.floor(ms / 3600000) % 24; const m = Math.floor(ms / 60000) % 60; const sec = Math.floor(ms / 1000) % 60;
+  const two = (n) => String(n).padStart(2, '0');
+  return `${d ? `${d}${t('sx.d')} ` : ''}${two(h)}:${two(m)}:${two(sec)}`;
+}
+function sxTick() {
+  const el = document.getElementById('sx-timer');
+  if (!el) { clearInterval(SX_TIMER); SX_TIMER = 0; return; }
+  const o = sxOffer();
+  if (!o) { clearInterval(SX_TIMER); SX_TIMER = 0; renderApp(); return; }
+  el.textContent = sxLeft(o.until);
+}
+function sxOfferBanner() {
   const o = sxOffer();
   if (!o) return '';
   const open = THEMES.filter((th) => packLeft(th.id).length && !isPaused(th.id));
   if (open.length < 2) return '';
   const sh = sxState();
-  const a = open.some((x) => x.id === sh.duoA) ? sh.duoA : sh.theme && open.some((x) => x.id === sh.theme) ? sh.theme : open[0].id;
+  const a = open.some((x) => x.id === sh.duoA) ? sh.duoA : open.some((x) => x.id === sh.theme) ? sh.theme : open[0].id;
   const b = open.some((x) => x.id === sh.duoB && x.id !== a) ? sh.duoB : open.find((x) => x.id !== a).id;
   const d = duoInfo(`duo:${a},${b}`);
-  const days = Math.max(0, Math.ceil((Number(o.until) - Date.now()) / 86400000));
   const opts = (cur, other) => open.filter((x) => x.id !== other).map((x) => `<option value="${x.id}" ${x.id === cur ? 'selected' : ''}>${esc(L(x.n))}</option>`).join('');
-  return `<section class="sx-offer" aria-labelledby="sx-offer-h"><div class="sx-offer-t"><span class="sx-ribbon">${esc(t('sx.offerChip', { n: o.pct }))}</span><h3 id="sx-offer-h">${esc(t('sx.offerH'))}</h3><p>${esc(t('sx.offerP', { n: o.pct }))} <b>${esc(t(days > 1 ? 'sx.daysLeft' : 'sx.lastDay', { n: days }))}</b></p></div>
-    <div class="sx-offer-pick"><label><span class="sx-sr">${esc(t('sx.pack1'))}</span><select data-sx-duo="A">${opts(a, b)}</select></label><span class="sx-plus" aria-hidden="true">+</span><label><span class="sx-sr">${esc(t('sx.pack2'))}</span><select data-sx-duo="B">${opts(b, a)}</select></label>
-      <div class="sx-offer-buy">${d ? `<s class="num">${fmt(d.was)}</s> <button type="button" class="btn btn-yolk btn-sm" data-sbuy="duo:${a},${b}">${esc(t('sh.buy'))} ${coin(d.price)}</button>` : ''}</div></div></section>`;
+  const picker = (side, cur, other, label) => `<label class="sx-duo-p"><span class="sx-sr">${esc(label)}</span>${pic(`theme-${cur}`)}<select data-sx-duo="${side}">${opts(cur, other)}</select></label>`;
+  setTimeout(() => { if (!SX_TIMER) SX_TIMER = setInterval(sxTick, 1000); }, 0);
+  return `<article class="lc t-lav bundle sx-banner" aria-labelledby="sx-offer-h">
+    <div class="lc-top">${lockChip(t('sx.offerChip', { n: o.pct }))}<span class="lbl2 sx-clock" role="timer" aria-label="${esc(t('sx.endsIn'))}">${esc(t('sx.endsIn'))} <time id="sx-timer" class="num">${esc(sxLeft(o.until))}</time></span></div>
+    <div class="lc-body"><div><h2 class="display" id="sx-offer-h">${esc(t('sx.offerH'))}</h2><p>${esc(t('sx.offerP', { n: o.pct }))}</p>
+      <div class="sx-duo">${picker('A', a, b, t('sx.pack1'))}<span class="sx-plus" aria-hidden="true">+</span>${picker('B', b, a, t('sx.pack2'))}</div>
+      <div class="actions">${d ? `<button class="btn btn-yolk" data-sbuy="duo:${a},${b}">${esc(t('sh.buy'))} ${coin(d.price)}</button><s class="was num">${fmt(d.was)}</s><small class="sx-save2">${esc(t('sx.youSave', { n: fmt(d.was - d.price) }))}</small>` : ''}</div></div>${pic('bundle')}</div>
+  </article>`;
 }
 function sxMain() {
   const sh = sxState();
@@ -4522,10 +4540,13 @@ function sxMain() {
   if (!th) return `<section class="sx-col sx-main"><p class="sx-empty">${esc(t('sx.none'))}</p></section>`;
   const left = packLeft(th.id);
   const prod = sh.prod;
+  const kinds = prod === 'all' ? ['panel', 'share'] : [prod];
   const all = Object.fromEntries(PARTS.map((p) => [p, th.id]));
   const mixAll = PARTS.every((p) => sh.mix[p] === th.id);
   const fav = SXF.includes(th.id);
-  const product = (kind, title, sub) => `<button type="button" class="sx-prod${prod === kind ? ' sel' : ''}" aria-pressed="${prod === kind}" data-sx-prod="${kind}" data-sx-focus="prod:${kind}"><span class="sx-prod-h"><b>${esc(title)}</b><small>${esc(sub)}</small></span><span class="sx-prod-pv">${sxCard(kind, all)}</span></button>`;
+  const kindName = (k) => t(k === 'panel' ? 'sx.pCard' : 'sx.pLink');
+  const product = (kind, sub) => `<button type="button" class="sx-prod${prod === kind ? ' sel' : ''}" aria-pressed="${prod === kind}" data-sx-prod="${kind}" data-sx-focus="prod:${kind}"><span class="sx-prod-h"><b>${esc(kindName(kind))}</b><small>${esc(sub)}</small></span><span class="sx-prod-pv">${sxCard(kind, all)}</span></button>`;
+  const seg3 = [['all', t('sx.all')], ['panel', kindName('panel')], ['share', kindName('share')]].map(([k, l]) => `<button type="button" class="${prod === k ? 'on' : ''}" aria-pressed="${prod === k}" data-sx-prod="${k}" data-sx-focus="seg:${k}">${esc(l)}</button>`).join('');
   const tiles = PARTS.map((p) => {
     const key = `${th.id}:${p}`;
     const own = owns(key);
@@ -4535,7 +4556,8 @@ function sxMain() {
     const act = own
       ? (worn ? `<span class="stchip st-g">${esc(t('sh.applied'))}</span>` : `<button type="button" class="btn btn-white btn-sm" data-apply="${key}">${esc(t('sh.apply'))}</button>`)
       : paused ? `<span class="stchip">${esc(t('sh.pausedT'))}</span>` : `<button type="button" class="btn btn-yolk btn-sm" data-sbuy="${key}">${coin(pp(th.id, p))}</button>`;
-    return `<article class="sx-tile${inMix ? ' in' : ''}"><div class="sx-tile-pv">${sxPart(prod, th, p)}</div>
+    const pvs = kinds.map((k) => `<figure class="sx-pv">${kinds.length > 1 ? `<figcaption>${esc(kindName(k))}</figcaption>` : ''}${sxPart(k, th, p)}</figure>`).join('');
+    return `<article class="sx-tile${inMix ? ' in' : ''}"><div class="sx-tile-pv${kinds.length > 1 ? ' two' : ''}">${pvs}</div>
       <div class="sx-tile-f"><div><b>${esc(t(`sh.${p}`))}</b><small>${esc(p === 'border' && (th.id === 'samurai' || th.id === 'pirate') ? t('sh.avToo') : own ? t('sh.owned') : t(`sx.part.${p}`))}</small></div>
         <div class="sx-tile-a"><button type="button" class="btn btn-sm ${inMix ? 'btn-yolk' : 'btn-white'}" aria-pressed="${inMix}" data-sx-use="${p}:${th.id}" data-sx-focus="use:${p}">${esc(t(inMix ? 'sx.inMix' : 'sx.addMix'))}</button>${act}</div></div></article>`;
   }).join('');
@@ -4545,16 +4567,16 @@ function sxMain() {
         <button type="button" class="btn ${mixAll ? 'btn-yolk' : 'btn-white'} btn-sm" aria-pressed="${mixAll}" data-sx-whole="${th.id}" data-sx-focus="whole">${esc(t(mixAll ? 'sx.wholeIn' : 'sx.wholeAdd'))}</button>
         ${left.length ? `<button type="button" class="btn btn-yolk btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : `<span class="stchip st-g">${esc(t('sh.ownedAll'))}</span>`}</div></header>
     ${left.length === 4 ? `<p class="sx-save">${esc(t('sh.save', { n: fmt(fullPrice(allKeys(th.id)) - packBase(th.id)) }))}</p>` : ''}
-    ${sxOfferBox()}
-    <div class="sx-prods" role="group" aria-label="${esc(t('sx.products'))}">${product('panel', t('sx.pCard'), t('sx.pCardP'))}${product('share', t('sx.pLink'), t('sx.pLinkP'))}</div>
-    <h3 class="sx-ph">${esc(t('sx.pieces', { w: t(prod === 'panel' ? 'sx.pCard' : 'sx.pLink') }))}</h3>
+    <div class="sx-prods" role="group" aria-label="${esc(t('sx.products'))}">${product('panel', t('sx.pCardP'))}${product('share', t('sx.pLinkP'))}</div>
+    <div class="sx-phrow"><h3 class="sx-ph">${esc(prod === 'all' ? t('sx.piecesAll') : t('sx.pieces', { w: kindName(prod) }))}</h3><div class="seg sx-seg" role="group" aria-label="${esc(t('sx.products'))}">${seg3}</div></div>
     <div class="sx-tiles">${tiles}</div>
   </section>`;
 }
 VIEWS.shop = function () {
   sxState();
-  return `${vhead(t('sh.h'), t('sh.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-white btn-sm" data-tab="wallet">${esc(t('sh.getCoins'))}</button>`)}
-    <div class="sx">${sxBrowse()}${sxMain()}${sxMix()}</div>`;
+  return `<div class="sx-wrap">${vhead(t('sh.h'), t('sh.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-white btn-sm" data-tab="wallet">${esc(t('sh.getCoins'))}</button>`)}
+    ${sxOfferBanner()}
+    <div class="sx">${sxBrowse()}${sxMain()}${sxMix()}</div></div>`;
 };
 /* clicks of the new shop (own data attributes, nothing else listens to them) */
 document.addEventListener('click', (e) => {
@@ -4567,7 +4589,7 @@ document.addEventListener('click', (e) => {
   if ((el = q('[data-sx-untag]'))) { const [g, id] = el.dataset.sxUntag.split(':'); if (g === 'flag') sh().f[id] = false; else sh().f[g] = sh().f[g].filter((x) => x !== id); sxRender('clear'); return; }
   if ((el = q('[data-sx-theme]'))) { sh().theme = el.dataset.sxTheme; track('view', sh().theme); sxRender(el.dataset.sxFocus); if (matchMedia('(max-width: 1000px)').matches) { const m = document.querySelector('.sx-main'); if (m) scrollTo({ top: m.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); } return; }
   if ((el = q('[data-sx-fav]'))) { const id = el.dataset.sxFav; const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); else SXF.push(id); sxSaveFav(); sxRender(el.dataset.sxFocus); return; }
-  if ((el = q('[data-sx-prod]'))) { sh().prod = el.dataset.sxProd; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-prod]'))) { const k = el.dataset.sxProd; sh().prod = sh().prod === k ? 'all' : k; sxRender(el.dataset.sxFocus); return; }
   if ((el = q('[data-sx-use]'))) { const [p, id] = el.dataset.sxUse.split(':'); const m = sh().mix; m[p] = m[p] === id ? 'def' : id; if (p === 'border' && (id === 'samurai' || id === 'pirate') && m[p] === id) sh().scene = 'link'; sxRender(el.dataset.sxFocus); return; }
   if ((el = q('[data-sx-whole]'))) { const id = el.dataset.sxWhole; const m = sh().mix; const all = PARTS.every((p) => m[p] === id); PARTS.forEach((p) => { m[p] = all ? 'def' : id; }); sxRender(el.dataset.sxFocus); return; }
   if ((el = q('[data-sx-clear]'))) { sh().mix[el.dataset.sxClear] = 'def'; sxRender(el.dataset.sxFocus); return; }
@@ -4634,7 +4656,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @keyframes pcsheen{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
 @media (prefers-reduced-motion:reduce){.pass-cta,.pass-cta .pc-sheen,.pass-cta .pc-gift i{animation:none}}
 @media (max-width:900px){body:not(.drawer-open) .pass-cta{display:none}}
-.sx{display:grid;grid-template-columns:240px minmax(0,1fr) 330px;gap:18px;align-items:start;color:var(--ink)}
+.sx{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:18px;align-items:start;color:var(--ink)}
 .sx :focus-visible{outline:3px solid var(--blurple);outline-offset:2px;border-radius:10px}
 .sx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .sx-col{background:var(--white);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);min-width:0}
@@ -4685,18 +4707,11 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .sx-head-t p{margin:0;color:var(--ink-2);font-size:14.5px;line-height:1.55}
 .sx-head-a{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .sx-save{margin:10px 0 0;font-size:13.5px;color:#14573a;font-weight:700}
-.sx-offer{margin:14px 0 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#2b2058,#3b2a78);color:#fff7e0;display:grid;gap:10px}
-.sx-ribbon{display:inline-block;background:#f6c23a;color:#2b2058;font-weight:800;font-size:12.5px;border-radius:999px;padding:3px 11px}
-.sx-offer h3{margin:6px 0 2px;font-size:18px;color:#fff}
-.sx-offer p{margin:0;font-size:14px;color:#e4dcff;line-height:1.5}
-.sx-offer-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.sx-offer-pick select{min-height:42px;border:0;border-radius:12px;padding:6px 12px;font:inherit;background:#fff;color:var(--ink)}
 .sx-plus{font-size:22px;font-weight:800;color:#f6c23a}
-.sx-offer-buy{margin-inline-start:auto;display:flex;align-items:center;gap:10px}
-.sx-offer-buy s{color:#cfc4ee}
 .sx-main{container-type:inline-size}
-.sx-prods{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
-@container (min-width:620px){.sx-prods{grid-template-columns:1fr 1fr}.sx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sx-prods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+@container (max-width:430px){.sx-prods{grid-template-columns:1fr}}
+@container (min-width:900px){.sx-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .sx-prod{display:grid;gap:8px;padding:10px;border:3px solid transparent;border-radius:18px;background:var(--paper);color:var(--ink);font:inherit;text-align:start;cursor:pointer;min-width:0}
 .sx-prod.sel{border-color:var(--blurple);background:#eef0ff}
 .sx-prod-h{display:grid}
@@ -4737,6 +4752,25 @@ html[lang='fa'] .sx-sect summary{letter-spacing:0;text-transform:none;font-size:
 .sx-fx:not(:has(.sx-dot)){grid-template-columns:auto minmax(0,1fr) auto}
 .sx-fx-n{color:var(--ink-2);font-size:12.5px}
 .sx-dot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+body.in-app .main:has(.sx-wrap){padding-inline:clamp(12px,1.6vw,24px)}
+body.in-app .main > .sx-wrap{width:100%;max-width:none}
+.sx-wrap{display:grid;gap:14px}
+.sx-phrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px}
+.sx-phrow .sx-ph{margin:0}
+.sx-seg button{min-height:38px}
+.sx-tile-pv.two{display:grid;gap:8px}
+@container (min-width:560px){.sx-tile-pv.two{grid-template-columns:1fr 1fr;align-items:start}}
+.sx-pv{margin:0}
+.sx-pv figcaption{font-size:12px;font-weight:800;color:var(--ink-2);margin:0 0 4px}
+.sx-banner .lc-body{align-items:center}
+.sx-clock{display:inline-flex;gap:6px;align-items:center}
+.sx-clock time{font-variant-numeric:tabular-nums;font-weight:800}
+.sx-duo{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+.sx-duo-p{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:16px;background:rgba(255,255,255,.75)}
+.sx-duo-p img{width:44px;height:44px;object-fit:contain}
+.sx-duo-p select{min-height:42px;border:0;background:transparent;font:inherit;font-weight:700;color:var(--ink);min-width:120px}
+.sx-plus{font-size:24px;font-weight:800}
+.sx-save2{color:#14573a;font-weight:800;margin-inline-start:8px}
 </style>`);
 Object.assign(T.en, {
   'sx.browse': 'Browse', 'sx.search': 'Search themes', 'sx.active': 'Active filters', 'sx.mineH': 'My shop', 'sx.byStyle': 'Art style', 'sx.byColor': 'Colour', 'sx.byRar': 'Rarity', 'sx.saved': 'Saved', 'sx.owned': 'I own pieces', 'sx.clear': 'Clear filters', 'sx.shown': 'Showing {n} of {m} themes', 'sx.none': 'No theme matches these filters.',
@@ -4747,7 +4781,7 @@ Object.assign(T.en, {
   'sx.wholeAdd': 'Use whole theme in my mix', 'sx.wholeIn': 'Whole theme is in my mix', 'sx.addMix': 'Add to my mix', 'sx.inMix': 'In my mix', 'sx.products': 'Products', 'sx.pCard': 'Card', 'sx.pCardP': 'The big card in your panel', 'sx.pLink': 'Link card', 'sx.pLinkP': 'The wide card others see', 'sx.pieces': 'Pieces of the {w}',
   'sx.part.card': 'Background picture', 'sx.part.border': 'Frame around the card', 'sx.part.btn': 'Buttons and badges', 'sx.part.font': 'Lettering',
   'sx.noMixPreview': '{n}: this piece cannot be drawn in a mix yet, so the preview shows the default there. It still works in Discord.', 'sx.wholeLook': 'Shows the whole theme.',
-  'sx.offerChip': '{n}% off', 'sx.offerH': 'Two packs, one price', 'sx.offerP': 'Pick any two theme packs and buy them together for {n}% less.', 'sx.daysLeft': '{n} days left', 'sx.lastDay': 'Ends today', 'sx.pack1': 'First pack', 'sx.pack2': 'Second pack', 'sx.duoQ': 'Buy these two packs?', 'sx.offerGone': 'That offer is over or you already own one of the packs.',
+  'sx.offerChip': '{n}% off', 'sx.offerH': 'Two packs, one price', 'sx.offerP': 'Pick any two theme packs and buy them together for {n}% less.', 'sx.daysLeft': '{n} days left', 'sx.lastDay': 'Ends today', 'sx.pack1': 'First pack', 'sx.pack2': 'Second pack', 'sx.duoQ': 'Buy these two packs?', 'sx.endsIn': 'Ends in', 'sx.d': 'd', 'sx.youSave': 'you save {n}', 'sx.all': 'Both', 'sx.piecesAll': 'Pieces, shown on both cards', 'sx.offerGone': 'That offer is over or you already own one of the packs.',
   'pc.free': 'Free road', 'pc.level': 'Level {n}', 'pc.gift': 'Gift',
 });
 Object.assign(T.fa, {
@@ -4759,7 +4793,7 @@ Object.assign(T.fa, {
   'sx.wholeAdd': 'کل تم رو بذار توی ترکیبم', 'sx.wholeIn': 'کل تم توی ترکیبمه', 'sx.addMix': 'بذار توی ترکیبم', 'sx.inMix': 'توی ترکیبمه', 'sx.products': 'محصولات', 'sx.pCard': 'کارت', 'sx.pCardP': 'کارت بزرگ توی پنل تو', 'sx.pLink': 'لینک‌کارت', 'sx.pLinkP': 'کارت عریضی که بقیه می‌بینن', 'sx.pieces': 'تکه‌های {w}',
   'sx.part.card': 'عکس پس‌زمینه', 'sx.part.border': 'قاب دور کارت', 'sx.part.btn': 'دکمه‌ها و نشان‌ها', 'sx.part.font': 'نوع نوشته',
   'sx.noMixPreview': '{n}: این تکه هنوز توی ترکیب قابل نمایش نیست، برای همین پیش‌نمایش اون قسمت پیش‌فرضه. توی دیسکورد درست کار می‌کنه.', 'sx.wholeLook': 'کل تم نشون داده می‌شه.',
-  'sx.offerChip': '{n}٪ تخفیف', 'sx.offerH': 'دو پک، یک قیمت', 'sx.offerP': 'هر دو پک تمی که خواستی رو با هم بخر و {n}٪ کمتر بده.', 'sx.daysLeft': '{n} روز مونده', 'sx.lastDay': 'امروز تموم می‌شه', 'sx.pack1': 'پک اول', 'sx.pack2': 'پک دوم', 'sx.duoQ': 'این دو پک رو می‌خری؟', 'sx.offerGone': 'این آفر تموم شده یا یکی از پک‌ها رو از قبل داری.',
+  'sx.offerChip': '{n}٪ تخفیف', 'sx.offerH': 'دو پک، یک قیمت', 'sx.offerP': 'هر دو پک تمی که خواستی رو با هم بخر و {n}٪ کمتر بده.', 'sx.daysLeft': '{n} روز مونده', 'sx.lastDay': 'امروز تموم می‌شه', 'sx.pack1': 'پک اول', 'sx.pack2': 'پک دوم', 'sx.duoQ': 'این دو پک رو می‌خری؟', 'sx.endsIn': 'پایان تا', 'sx.d': 'روز', 'sx.youSave': '{n} سکه کمتر', 'sx.all': 'هر دو', 'sx.piecesAll': 'تکه‌ها، روی هر دو کارت', 'sx.offerGone': 'این آفر تموم شده یا یکی از پک‌ها رو از قبل داری.',
   'pc.free': 'مسیر رایگان', 'pc.level': 'مرحلهٔ {n}', 'pc.gift': 'هدیه',
 });
 function cartBar() {
@@ -5140,7 +5174,7 @@ Object.assign(T.fa, {
 });
 
 let REF = { code: null, locked: false, invitedBy: null, invites: 0, reward: 0, started: true, draft: '', inviter: '' };
-/* v31.3: My servers, tidy and accessible. Real per-server data, honest states, keyboard and screen reader friendly. */
+/* v31.4: My servers, tidy and accessible, with errors that say what is wrong. Real per-server data, honest states, keyboard and screen reader friendly. */
 const OWNER_KINDS = [
   { kind: 'inbox', slug: 'inbox', defaultOn: true, title: { en: 'Inbox', fa: 'صندوق نامه‌ها' }, guide: { en: 'Private anonymous messages arrive here. Each member opens their own private thread.', fa: 'نامه‌های ناشناس خصوصی این‌جا می‌رسن و هر عضو ریسمان خصوصی خودش رو باز می‌کنه.' }, preview: { en: 'A new anonymous message is waiting in your private inbox.', fa: 'یک نامهٔ ناشناس تازه توی صندوق خصوصی‌ات منتظره.' }, btn: { en: ['Open my thread', 'Help'], fa: ['باز کردن ریسمانم', 'راهنما'] } },
   { kind: 'links', slug: 'talk-to-me', defaultOn: true, title: { en: 'Talk to me', fa: 'با من حرف بزن' }, guide: { en: 'Members get and share their personal anonymous link here, so friends can write to them without showing who they are.', fa: 'اعضا لینک ناشناس شخصی‌شون رو این‌جا می‌گیرن و می‌ذارن تا بقیه بدون دیده‌شدن هویتشون بهشون پیام بدن.' }, preview: { en: 'Your anonymous link is ready to share.', fa: 'لینک ناشناست آمادهٔ اشتراکه.' }, btn: { en: ['Get my link', 'New code'], fa: ['لینک من', 'کد تازه'] } },
@@ -5206,7 +5240,7 @@ async function ownerLoad(force = false) {
     if (OWNER.guilds.length && !OWNER.guilds.some((g) => g.id === OWNER.selectedGuild)) OWNER.selectedGuild = OWNER.guilds[0].id;
     renderApp();
     if (OWNER.guilds.length) await ownerLoadGuild(ownerGuild());
-  } catch (e) { OWNER.state = 'error'; OWNER.error = e.status === 404 || e.status === 401 ? 'update' : 'net'; renderApp(); }
+  } catch (e) { OWNER.state = 'error'; OWNER.error = ownerErrKey(e); OWNER.code = (e.body && e.body.error) || e.status || ''; renderApp(); }
 }
 async function ownerLoadGuild(g, quiet = false, scan = false) {
   if (!g || g.loading) return;
@@ -5220,15 +5254,17 @@ async function ownerLoadGuild(g, quiet = false, scan = false) {
     g.health = r.health || { known: false, missing: [] };
     g.kinds = (r.kinds || []).filter((x) => !x.officialOnly && x.kind !== 'reports').map(ownerNormalize);
     if (scan) g.scanned = true;
-  } catch (e) { g.error = e.status === 403 ? 'perm' : 'net'; if (!quiet) g.kinds = null; }
+  } catch (e) { g.error = e.status === 403 ? 'owner.errPerm' : ownerErrKey(e); g.code = (e.body && e.body.error) || e.status || ''; if (!quiet) g.kinds = null; }
   g.loading = false; g.scanning = false; renderApp();
   // first look is fast (saved ids); then one deeper look for boards the owner made by hand
   if (!scan && g.kinds && !g.scanned && S.live) { g.scanning = true; renderApp(); ownerLoadGuild(g, true, true); }
 }
-function ownerApplyError(e) {
-  const s = e && e.status;
+function ownerErrKey(e) {
+  const s = e && e.status; const c = e && e.body && e.body.error;
+  if (s === 404 && c === 'guild') return 'owner.errGuild';
   return s === 401 ? 'owner.errLogin' : s === 403 ? 'owner.errPerm' : s === 404 ? 'owner.errUpdate' : s === 429 ? 'owner.errSlow' : s >= 500 ? 'owner.errBot' : 'owner.errNet';
 }
+const ownerApplyError = ownerErrKey;
 async function ownerApply() {
   const g = ownerGuild();
   if (!g || OWNER.applying || !ownerChangedCount(g)) return;
@@ -5252,7 +5288,7 @@ async function ownerApply() {
   } catch (e) { g.result = { created: [], existing: [], errors: [], fatal: ownerApplyError(e) }; }
   OWNER.applying = false; ownerRender('apply');
 }
-const ownerBox = (text, retry = '', extra = '') => `<div class="os-state" role="status"><p>${esc(text)}</p>${extra}${retry ? `<button type="button" class="btn btn-white btn-sm" data-owner-retry="${retry}">${esc(t('owner.retry'))}</button>` : ''}</div>`;
+const ownerBox = (text, retry = '', extra = '', code = '') => `<div class="os-state" role="status"><p>${esc(text)}</p>${code ? `<p class="os-code">${esc(t('owner.code'))}: <code>${esc(code)}</code></p>` : ''}${extra}${retry ? `<button type="button" class="btn btn-white btn-sm" data-owner-retry="${retry}">${esc(t('owner.retry'))}</button>` : ''}</div>`;
 function ownerChip(g, k) {
   const err = (g.result?.errors || []).find((x) => x.kind === k.kind);
   if (k.locked) return ['soon', t('owner.soon')];
@@ -5290,7 +5326,7 @@ function ownerServersView() {
   if (S.live) {
     if (OWNER.state === 'idle') setTimeout(() => ownerLoad(), 0);
     if (OWNER.state === 'idle' || OWNER.state === 'loading') return `${head}${ownerBox(t('owner.loading'))}`;
-    if (OWNER.state === 'error') return `${head}${ownerBox(t(OWNER.error === 'update' ? 'owner.errUpdate' : 'owner.errNet'), 'all')}`;
+    if (OWNER.state === 'error') return `${head}${ownerBox(t(OWNER.error), 'all', '', OWNER.code)}`;
     if (OWNER.state === 'empty') return `${head}${ownerBox(t('owner.empty'), 'all', `<p><a class="btn btn-discord btn-sm" href="${esc(inviteUrl())}" target="_blank" rel="noopener">${esc(t('owner.addBot'))}</a></p>`)}`;
   }
   const g = ownerGuild();
@@ -5309,14 +5345,14 @@ function ownerServersView() {
     const n = ownerChangedCount(g);
     const note = OWNER.applying ? t('owner.applying') : n ? `${n} ${t('owner.changes')}` : t('owner.keep');
     body = `${health}<div class="os-toolbar"><span class="os-scan" role="status">${esc(g.scanning ? t('owner.scanning') : g.scanned ? t('owner.scanned') : '')}</span><button type="button" class="btn btn-white btn-sm" data-owner-rescan ${g.loading ? 'disabled' : ''}>${esc(t('owner.rescan'))}</button></div>${ownerResult(g)}${groups}<div class="os-bar" role="region" aria-label="${esc(t('owner.barLabel'))}"><span class="os-bar-note" aria-live="polite">${esc(note)}</span><span class="os-bar-btns">${n ? `<button type="button" class="btn btn-white btn-sm" data-owner-reset data-ofocus="undo">${esc(t('owner.undo'))}</button>` : ''}<button type="button" class="btn btn-yolk btn-sm" data-owner-apply data-ofocus="apply" ${n && !OWNER.applying ? '' : 'disabled'}>${esc(OWNER.applying ? t('owner.applying') : t('owner.apply'))}</button></span></div>`;
-  } else if (g.error) body = ownerBox(t(g.error === 'perm' ? 'owner.errPerm' : 'owner.errNet'), 'guild');
+  } else if (g.error) body = ownerBox(t(g.error), 'guild', '', g.code);
   else body = ownerBox(t('owner.loading'));
   const demo = S.live ? '' : `<p class="os-demo" role="note">${esc(t('owner.demoNote'))}</p>`;
   return `${head}<div class="os">${demo}${guide}<div class="os-tabs" role="tablist" aria-label="${esc(t('owner.tabsLabel'))}">${tabs}</div><section class="os-panel" id="os-panel" role="tabpanel" aria-labelledby="os-tab-${esc(g.id)}" tabindex="-1"><div class="os-panel-head"><h2>${esc(g.name)}</h2></div>${body}</section></div>`;
 }
 VIEWS.servers = ownerServersView;
-Object.assign(T.en, { 'owner.where': 'Channel', 'owner.foundIn': 'Live in', 'owner.keepHere': 'Keep it where it is', 'owner.newChannel': 'Make a new channel for it', 'owner.pickHint': 'Or pick a text channel you already have. The bot posts its board there (it must be able to see and write in it).', 'owner.rescan': 'Detect my channels', 'owner.perms': 'The bot is missing permissions here, so some channels may not appear:', 'owner.permsOk': 'The bot has all the permissions it needs here.', 'owner.reinvite': 'Re-invite the bot', 'owner.partial': 'Some channels could not be set up. Details below.', 'owner.started': 'Done. Your server is updated.', 'owner.error': 'Could not apply your changes', 'owner.perm.view_channels': 'View Channels', 'owner.perm.manage_channels': 'Manage Channels', 'owner.perm.send_messages': 'Send Messages', 'owner.perm.embed_links': 'Embed Links', 'owner.perm.read_message_history': 'Read Message History', 'owner.res.created': 'created', 'owner.res.existing': 'already there', 'owner.res.nothing': 'Nothing to change.', 'owner.res.timeout': 'Still working in the background. Press Detect my channels in a moment.', 'owner.setupItem': 'Server setup', 'owner.why.missing_permissions': 'the bot lacks permission (Manage Channels, Send Messages, Embed Links). Re-invite it or fix its role.', 'owner.why.missing_access': 'the bot cannot see that channel or category', 'owner.why.not_set_up': 'the server is not set up yet. Run /anonadmin setup once', 'owner.why.setup_failed': 'the automatic setup failed. Run /anonadmin setup in Discord to see why', 'owner.why.not_available_yet': 'not available yet', 'owner.why.channel_gone': 'that channel no longer exists', 'owner.why.rate_limited': 'Discord asked us to slow down. Try again in a minute', 'owner.why.bad_channel': 'that is not a valid channel', 'owner.why.not_text': 'pick a normal text channel', 'owner.why.other': 'it did not work', 'owner.g.default': 'Always there', 'owner.gs.default': 'The three channels every server gets from /anonadmin setup.', 'owner.g.start': 'Welcome and invites', 'owner.gs.start': 'Optional channels that greet new members and reward invites.', 'owner.g.extras': 'Extras', 'owner.gs.extras': 'More boards you can add later.', 'owner.loading': 'Loading your servers...', 'owner.empty': 'No server found. You need Administrator or Manage Server in a server where peekaboo is added.', 'owner.addBot': 'Add peekaboo to a server', 'owner.errNet': 'Could not reach the bot. Check your connection and try again.', 'owner.errUpdate': 'The server tools are not live on the bot yet. Try again after the bot update.', 'owner.errLogin': 'Your login ran out. Log in again and retry.', 'owner.errSlow': 'Too many tries. Wait a minute and press Apply again.', 'owner.errBot': 'The bot had a problem. Try again in a moment.', 'owner.errPerm': 'You need Administrator or Manage Server in this server.', 'owner.retry': 'Try again', 'owner.changes': 'changes not applied yet', 'owner.keep': 'Nothing to apply. Switch a channel on or pick one to start.', 'owner.undo': 'Undo', 'owner.apply': 'Apply changes', 'owner.applying': 'Working on it...', 'owner.soon': 'Soon', 'owner.setupSoon': 'Not available yet. The bot cannot set this channel up for other servers for now.', 'owner.setupNew': 'Switch on, then press Apply: the bot creates it for you.', 'owner.lockedLive': 'To remove it, delete the channel in Discord.', 'owner.chipLive': 'Live', 'owner.chipWill': 'Will be created', 'owner.chipDefault': 'Recommended', 'owner.chipOff': 'Off', 'owner.chipFailed': 'Failed', 'owner.chipMove': 'Will move', 'owner.preview': 'See how it looks in Discord', 'owner.bot': 'APP', 'owner.opensDiscord': 'opens Discord', 'owner.scanning': 'Looking for boards you made by hand...', 'owner.scanned': 'Checked your channels.', 'owner.tabsLabel': 'Your servers', 'owner.barLabel': 'Apply changes', 'owner.demoNote': 'Demo: these servers are examples. Log in to manage your own.', 'owner.guideTitle': 'How this works', 'owner.guideHide': 'Hide', 'owner.guideShow': 'Show the quick guide', 'owner.guide1': 'Pick a server. You see it here only if you are Administrator or have Manage Server.', 'owner.guide2': 'Switch on the channels you want, or choose a channel you already have for a board.', 'owner.guide3': 'Press Apply. The bot creates or posts them and tells you what worked.' });
-Object.assign(T.fa, { 'owner.where': 'کانال', 'owner.foundIn': 'فعال توی', 'owner.keepHere': 'همون‌جایی که هست بمونه', 'owner.newChannel': 'یه کانال تازه براش بساز', 'owner.pickHint': 'یا یکی از کانال‌های متنیِ خودت رو انتخاب کن. ربات تابلوش رو همون‌جا می‌ذاره (باید اون کانال رو ببینه و توش بنویسه).', 'owner.rescan': 'کانال‌هام رو پیدا کن', 'owner.perms': 'ربات این‌جا دسترسی کم داره و ممکنه بعضی کانال‌ها ساخته نشن:', 'owner.permsOk': 'ربات همهٔ دسترسی‌های لازم رو این‌جا داره.', 'owner.reinvite': 'دعوت دوباره‌ی ربات', 'owner.partial': 'بعضی کانال‌ها ساخته نشدن. جزئیات پایینه.', 'owner.started': 'انجام شد. سرورت به‌روز شد.', 'owner.error': 'تغییرات اعمال نشد', 'owner.perm.view_channels': 'دیدن کانال‌ها', 'owner.perm.manage_channels': 'مدیریت کانال‌ها', 'owner.perm.send_messages': 'ارسال پیام', 'owner.perm.embed_links': 'جاسازی لینک', 'owner.perm.read_message_history': 'خواندن تاریخچهٔ پیام', 'owner.res.created': 'ساخته شد', 'owner.res.existing': 'از قبل بود', 'owner.res.nothing': 'چیزی برای تغییر نبود.', 'owner.res.timeout': 'کار توی پس‌زمینه ادامه داره. یه کم بعد «کانال‌هام رو پیدا کن» رو بزن.', 'owner.setupItem': 'راه‌اندازی سرور', 'owner.why.missing_permissions': 'ربات دسترسی نداره (مدیریت کانال‌ها، ارسال پیام، جاسازی لینک). دوباره دعوتش کن یا رولش رو درست کن.', 'owner.why.missing_access': 'ربات اون کانال یا دسته رو نمی‌بینه', 'owner.why.not_set_up': 'سرور هنوز راه‌اندازی نشده. یک بار /anonadmin setup رو بزن', 'owner.why.setup_failed': 'راه‌اندازی خودکار نشد. توی دیسکورد /anonadmin setup رو بزن تا دلیلش رو ببینی', 'owner.why.not_available_yet': 'هنوز در دسترس نیست', 'owner.why.channel_gone': 'اون کانال دیگه وجود نداره', 'owner.why.rate_limited': 'دیسکورد گفت آروم‌تر. یه دقیقه بعد دوباره امتحان کن', 'owner.why.bad_channel': 'کانال معتبر نیست', 'owner.why.not_text': 'یه کانال متنی معمولی انتخاب کن', 'owner.why.other': 'نشد', 'owner.g.default': 'همیشه هست', 'owner.gs.default': 'سه کانالی که /anonadmin setup برای هر سرور می‌سازه.', 'owner.g.start': 'خوش‌آمد و دعوت', 'owner.gs.start': 'کانال‌های اختیاری برای خوش‌آمدگویی و پاداش دعوت.', 'owner.g.extras': 'امکانات اضافه', 'owner.gs.extras': 'تابلوهای بیشتر که بعداً می‌تونی اضافه کنی.', 'owner.loading': 'دارم سرورهات رو میارم...', 'owner.empty': 'سروری پیدا نشد. باید توی سروری که peekaboo داخلشه ادمین یا مدیر سرور باشی.', 'owner.addBot': 'اضافه کردن peekaboo به یه سرور', 'owner.errNet': 'به ربات وصل نشدم. اینترنتت رو چک کن و دوباره امتحان کن.', 'owner.errUpdate': 'ابزار سرور هنوز روی ربات فعال نشده. بعد از آپدیت ربات دوباره امتحان کن.', 'owner.errLogin': 'ورودت تموم شده. دوباره وارد شو و امتحان کن.', 'owner.errSlow': 'زیاد امتحان کردی. یه دقیقه صبر کن و دوباره اعمال رو بزن.', 'owner.errBot': 'ربات به مشکل خورد. یه کم بعد دوباره امتحان کن.', 'owner.errPerm': 'توی این سرور باید ادمین یا مدیر سرور باشی.', 'owner.retry': 'دوباره امتحان کن', 'owner.changes': 'تغییر هنوز اعمال نشده', 'owner.keep': 'چیزی برای اعمال نیست. یه کانال رو روشن کن یا یکی انتخاب کن.', 'owner.undo': 'برگردون', 'owner.apply': 'اعمال تغییرات', 'owner.applying': 'دارم انجامش می‌دم...', 'owner.soon': 'به‌زودی', 'owner.setupSoon': 'هنوز در دسترس نیست. ربات فعلاً نمی‌تونه این کانال رو برای سرورهای دیگه بسازه.', 'owner.setupNew': 'روشنش کن و اعمال رو بزن: ربات برات می‌سازدش.', 'owner.lockedLive': 'برای حذفش، کانال رو توی دیسکورد پاک کن.', 'owner.chipLive': 'فعال', 'owner.chipWill': 'ساخته می‌شه', 'owner.chipDefault': 'پیشنهادی', 'owner.chipOff': 'خاموش', 'owner.chipFailed': 'نشد', 'owner.chipMove': 'جابه‌جا می‌شه', 'owner.preview': 'ببین توی دیسکورد چه شکلیه', 'owner.bot': 'برنامه', 'owner.opensDiscord': 'دیسکورد باز می‌شه', 'owner.scanning': 'دارم دنبال تابلوهایی که خودت ساختی می‌گردم...', 'owner.scanned': 'کانال‌هات چک شد.', 'owner.tabsLabel': 'سرورهای تو', 'owner.barLabel': 'اعمال تغییرات', 'owner.demoNote': 'نمونه: این سرورها فقط مثالن. برای سرور خودت وارد شو.', 'owner.guideTitle': 'چطور کار می‌کنه', 'owner.guideHide': 'پنهان کن', 'owner.guideShow': 'نمایش راهنمای کوتاه', 'owner.guide1': 'یه سرور انتخاب کن. فقط اگه ادمین یا «مدیریت سرور» باشی این‌جا می‌بینیش.', 'owner.guide2': 'کانال‌هایی که می‌خوای رو روشن کن، یا برای یه تابلو کانالی که از قبل داری رو انتخاب کن.', 'owner.guide3': 'اعمال رو بزن. ربات می‌سازه یا می‌ذاره و بهت می‌گه چی شد.' });
+Object.assign(T.en, { 'owner.where': 'Channel', 'owner.foundIn': 'Live in', 'owner.keepHere': 'Keep it where it is', 'owner.newChannel': 'Make a new channel for it', 'owner.pickHint': 'Or pick a text channel you already have. The bot posts its board there (it must be able to see and write in it).', 'owner.rescan': 'Detect my channels', 'owner.perms': 'The bot is missing permissions here, so some channels may not appear:', 'owner.permsOk': 'The bot has all the permissions it needs here.', 'owner.reinvite': 'Re-invite the bot', 'owner.partial': 'Some channels could not be set up. Details below.', 'owner.started': 'Done. Your server is updated.', 'owner.error': 'Could not apply your changes', 'owner.perm.view_channels': 'View Channels', 'owner.perm.manage_channels': 'Manage Channels', 'owner.perm.send_messages': 'Send Messages', 'owner.perm.embed_links': 'Embed Links', 'owner.perm.read_message_history': 'Read Message History', 'owner.res.created': 'created', 'owner.res.existing': 'already there', 'owner.res.nothing': 'Nothing to change.', 'owner.res.timeout': 'Still working in the background. Press Detect my channels in a moment.', 'owner.setupItem': 'Server setup', 'owner.why.missing_permissions': 'the bot lacks permission (Manage Channels, Send Messages, Embed Links). Re-invite it or fix its role.', 'owner.why.missing_access': 'the bot cannot see that channel or category', 'owner.why.not_set_up': 'the server is not set up yet. Run /anonadmin setup once', 'owner.why.setup_failed': 'the automatic setup failed. Run /anonadmin setup in Discord to see why', 'owner.why.not_available_yet': 'not available yet', 'owner.why.channel_gone': 'that channel no longer exists', 'owner.why.rate_limited': 'Discord asked us to slow down. Try again in a minute', 'owner.why.bad_channel': 'that is not a valid channel', 'owner.why.not_text': 'pick a normal text channel', 'owner.why.other': 'it did not work', 'owner.g.default': 'Always there', 'owner.gs.default': 'The three channels every server gets from /anonadmin setup.', 'owner.g.start': 'Welcome and invites', 'owner.gs.start': 'Optional channels that greet new members and reward invites.', 'owner.g.extras': 'Extras', 'owner.gs.extras': 'More boards you can add later.', 'owner.loading': 'Loading your servers...', 'owner.empty': 'No server found. You need Administrator or Manage Server in a server where peekaboo is added.', 'owner.addBot': 'Add peekaboo to a server', 'owner.errNet': 'Could not reach the bot. Check your connection and try again.', 'owner.errUpdate': 'The server tools are not live on the bot yet. Try again after the bot update.', 'owner.errLogin': 'Your login ran out. Log in again and retry.', 'owner.errSlow': 'Too many tries. Wait a minute and press Apply again.', 'owner.errBot': 'The bot had a problem. Try again in a moment.', 'owner.errGuild': 'The bot cannot read this server right now (its permissions, or Discord is limiting it). Wait a minute and try again, or re-invite the bot.', 'owner.code': 'Code', 'owner.errPerm': 'You need Administrator or Manage Server in this server.', 'owner.retry': 'Try again', 'owner.changes': 'changes not applied yet', 'owner.keep': 'Nothing to apply. Switch a channel on or pick one to start.', 'owner.undo': 'Undo', 'owner.apply': 'Apply changes', 'owner.applying': 'Working on it...', 'owner.soon': 'Soon', 'owner.setupSoon': 'Not available yet. The bot cannot set this channel up for other servers for now.', 'owner.setupNew': 'Switch on, then press Apply: the bot creates it for you.', 'owner.lockedLive': 'To remove it, delete the channel in Discord.', 'owner.chipLive': 'Live', 'owner.chipWill': 'Will be created', 'owner.chipDefault': 'Recommended', 'owner.chipOff': 'Off', 'owner.chipFailed': 'Failed', 'owner.chipMove': 'Will move', 'owner.preview': 'See how it looks in Discord', 'owner.bot': 'APP', 'owner.opensDiscord': 'opens Discord', 'owner.scanning': 'Looking for boards you made by hand...', 'owner.scanned': 'Checked your channels.', 'owner.tabsLabel': 'Your servers', 'owner.barLabel': 'Apply changes', 'owner.demoNote': 'Demo: these servers are examples. Log in to manage your own.', 'owner.guideTitle': 'How this works', 'owner.guideHide': 'Hide', 'owner.guideShow': 'Show the quick guide', 'owner.guide1': 'Pick a server. You see it here only if you are Administrator or have Manage Server.', 'owner.guide2': 'Switch on the channels you want, or choose a channel you already have for a board.', 'owner.guide3': 'Press Apply. The bot creates or posts them and tells you what worked.' });
+Object.assign(T.fa, { 'owner.where': 'کانال', 'owner.foundIn': 'فعال توی', 'owner.keepHere': 'همون‌جایی که هست بمونه', 'owner.newChannel': 'یه کانال تازه براش بساز', 'owner.pickHint': 'یا یکی از کانال‌های متنیِ خودت رو انتخاب کن. ربات تابلوش رو همون‌جا می‌ذاره (باید اون کانال رو ببینه و توش بنویسه).', 'owner.rescan': 'کانال‌هام رو پیدا کن', 'owner.perms': 'ربات این‌جا دسترسی کم داره و ممکنه بعضی کانال‌ها ساخته نشن:', 'owner.permsOk': 'ربات همهٔ دسترسی‌های لازم رو این‌جا داره.', 'owner.reinvite': 'دعوت دوباره‌ی ربات', 'owner.partial': 'بعضی کانال‌ها ساخته نشدن. جزئیات پایینه.', 'owner.started': 'انجام شد. سرورت به‌روز شد.', 'owner.error': 'تغییرات اعمال نشد', 'owner.perm.view_channels': 'دیدن کانال‌ها', 'owner.perm.manage_channels': 'مدیریت کانال‌ها', 'owner.perm.send_messages': 'ارسال پیام', 'owner.perm.embed_links': 'جاسازی لینک', 'owner.perm.read_message_history': 'خواندن تاریخچهٔ پیام', 'owner.res.created': 'ساخته شد', 'owner.res.existing': 'از قبل بود', 'owner.res.nothing': 'چیزی برای تغییر نبود.', 'owner.res.timeout': 'کار توی پس‌زمینه ادامه داره. یه کم بعد «کانال‌هام رو پیدا کن» رو بزن.', 'owner.setupItem': 'راه‌اندازی سرور', 'owner.why.missing_permissions': 'ربات دسترسی نداره (مدیریت کانال‌ها، ارسال پیام، جاسازی لینک). دوباره دعوتش کن یا رولش رو درست کن.', 'owner.why.missing_access': 'ربات اون کانال یا دسته رو نمی‌بینه', 'owner.why.not_set_up': 'سرور هنوز راه‌اندازی نشده. یک بار /anonadmin setup رو بزن', 'owner.why.setup_failed': 'راه‌اندازی خودکار نشد. توی دیسکورد /anonadmin setup رو بزن تا دلیلش رو ببینی', 'owner.why.not_available_yet': 'هنوز در دسترس نیست', 'owner.why.channel_gone': 'اون کانال دیگه وجود نداره', 'owner.why.rate_limited': 'دیسکورد گفت آروم‌تر. یه دقیقه بعد دوباره امتحان کن', 'owner.why.bad_channel': 'کانال معتبر نیست', 'owner.why.not_text': 'یه کانال متنی معمولی انتخاب کن', 'owner.why.other': 'نشد', 'owner.g.default': 'همیشه هست', 'owner.gs.default': 'سه کانالی که /anonadmin setup برای هر سرور می‌سازه.', 'owner.g.start': 'خوش‌آمد و دعوت', 'owner.gs.start': 'کانال‌های اختیاری برای خوش‌آمدگویی و پاداش دعوت.', 'owner.g.extras': 'امکانات اضافه', 'owner.gs.extras': 'تابلوهای بیشتر که بعداً می‌تونی اضافه کنی.', 'owner.loading': 'دارم سرورهات رو میارم...', 'owner.empty': 'سروری پیدا نشد. باید توی سروری که peekaboo داخلشه ادمین یا مدیر سرور باشی.', 'owner.addBot': 'اضافه کردن peekaboo به یه سرور', 'owner.errNet': 'به ربات وصل نشدم. اینترنتت رو چک کن و دوباره امتحان کن.', 'owner.errUpdate': 'ابزار سرور هنوز روی ربات فعال نشده. بعد از آپدیت ربات دوباره امتحان کن.', 'owner.errLogin': 'ورودت تموم شده. دوباره وارد شو و امتحان کن.', 'owner.errSlow': 'زیاد امتحان کردی. یه دقیقه صبر کن و دوباره اعمال رو بزن.', 'owner.errBot': 'ربات به مشکل خورد. یه کم بعد دوباره امتحان کن.', 'owner.errGuild': 'ربات الان نمی‌تونه این سرور رو بخونه (دسترسی‌هاش، یا دیسکورد داره محدودش می‌کنه). یه دقیقه صبر کن و دوباره امتحان کن، یا ربات رو دوباره دعوت کن.', 'owner.code': 'کد', 'owner.errPerm': 'توی این سرور باید ادمین یا مدیر سرور باشی.', 'owner.retry': 'دوباره امتحان کن', 'owner.changes': 'تغییر هنوز اعمال نشده', 'owner.keep': 'چیزی برای اعمال نیست. یه کانال رو روشن کن یا یکی انتخاب کن.', 'owner.undo': 'برگردون', 'owner.apply': 'اعمال تغییرات', 'owner.applying': 'دارم انجامش می‌دم...', 'owner.soon': 'به‌زودی', 'owner.setupSoon': 'هنوز در دسترس نیست. ربات فعلاً نمی‌تونه این کانال رو برای سرورهای دیگه بسازه.', 'owner.setupNew': 'روشنش کن و اعمال رو بزن: ربات برات می‌سازدش.', 'owner.lockedLive': 'برای حذفش، کانال رو توی دیسکورد پاک کن.', 'owner.chipLive': 'فعال', 'owner.chipWill': 'ساخته می‌شه', 'owner.chipDefault': 'پیشنهادی', 'owner.chipOff': 'خاموش', 'owner.chipFailed': 'نشد', 'owner.chipMove': 'جابه‌جا می‌شه', 'owner.preview': 'ببین توی دیسکورد چه شکلیه', 'owner.bot': 'برنامه', 'owner.opensDiscord': 'دیسکورد باز می‌شه', 'owner.scanning': 'دارم دنبال تابلوهایی که خودت ساختی می‌گردم...', 'owner.scanned': 'کانال‌هات چک شد.', 'owner.tabsLabel': 'سرورهای تو', 'owner.barLabel': 'اعمال تغییرات', 'owner.demoNote': 'نمونه: این سرورها فقط مثالن. برای سرور خودت وارد شو.', 'owner.guideTitle': 'چطور کار می‌کنه', 'owner.guideHide': 'پنهان کن', 'owner.guideShow': 'نمایش راهنمای کوتاه', 'owner.guide1': 'یه سرور انتخاب کن. فقط اگه ادمین یا «مدیریت سرور» باشی این‌جا می‌بینیش.', 'owner.guide2': 'کانال‌هایی که می‌خوای رو روشن کن، یا برای یه تابلو کانالی که از قبل داری رو انتخاب کن.', 'owner.guide3': 'اعمال رو بزن. ربات می‌سازه یا می‌ذاره و بهت می‌گه چی شد.' });
 document.head.insertAdjacentHTML('beforeend', `<style>
 .os{max-width:900px;margin-inline:auto;display:grid;gap:16px;color:var(--ink)}
 .os :focus-visible{outline:3px solid var(--blurple);outline-offset:2px;border-radius:8px}
@@ -5395,6 +5431,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @media (max-width:560px){.os-card-top{grid-template-columns:auto minmax(0,1fr)}.os-chip{grid-column:2;justify-self:start}.os-bar{bottom:6px}.os-bar-btns{width:100%}.os-bar-btns .btn{flex:1 1 0}}
 @media (prefers-reduced-motion:reduce){.os-sw,.os-sw::after{transition:none}}
 </style>`);
+document.head.insertAdjacentHTML('beforeend', '<style>.os-code{font-size:13px;color:var(--ink-2)}.os-code code{background:var(--paper);padding:1px 6px;border-radius:6px}</style>');
 document.addEventListener('change', (e) => {
   const sel = e.target.closest?.('[data-owner-pick]');
   if (!sel) return;
