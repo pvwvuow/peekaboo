@@ -4683,40 +4683,123 @@ Object.assign(T.fa, {
 });
 
 let REF = { code: null, locked: false, invitedBy: null, invites: 0, reward: 0, started: true, draft: '', inviter: '' };
-let OWNER = { guilds: [], selectedGuild: 'demo-1', selectedKind: 'inbox', changed: {}, loaded: false, applying: false };
+/* v31.1: My servers rebuilt. Real per-server data, working switches, honest loading / empty / error states. */
 const OWNER_KINDS = [
-  { kind: 'inbox', category: 'info', en: 'inbox', fa: 'inbox', title: { en: 'Inbox', fa: 'inbox' }, guide: { en: 'Private anonymous messages arrive here.', fa: 'نامه‌های ناشناس خصوصی این‌جا می‌رسن.' }, preview: { en: 'A new anonymous message is waiting in your private inbox.', fa: 'یک نامهٔ ناشناس تازه توی صندوق خصوصی‌ات منتظره.' }, defaultOn: true },
-  { kind: 'links', category: 'info', en: 'talk-to-me', fa: 'talk-to-me', title: { en: 'Talk to me', fa: 'talk-to-me' }, guide: { en: 'Members use this channel to share your anonymous link.', fa: 'اعضا این‌جا لینک ناشناست رو می‌گیرن و پیام می‌فرستن.' }, preview: { en: 'Your anonymous link is ready to share.', fa: 'لینک ناشناست آمادهٔ اشتراکه.' }, defaultOn: true },
-  { kind: 'hub', category: 'info', en: 'anonymous', fa: 'anonymous', title: { en: 'Anonymous hub', fa: 'anonymous' }, guide: { en: 'The bot menu and anonymous tools live here.', fa: 'منوی ربات و ابزارهای ناشناس این‌جا قرار می‌گیرن.' }, preview: { en: 'Choose an anonymous action below.', fa: 'یکی از کارهای ناشناس رو از پایین انتخاب کن.' }, defaultOn: true },
-  { kind: 'start', category: 'main', en: 'start-here', fa: 'start-here', title: { en: 'Start here', fa: 'از این‌جا شروع کن' }, guide: { en: 'A friendly welcome and the quick setup guide.', fa: 'خوش‌آمد و راهنمای کوتاه راه‌اندازی.' }, preview: { en: 'Welcome. Start here to meet peekaboo.', fa: 'خوش اومدی. از این‌جا با peekaboo آشنا شو.' }, defaultOn: false },
-  { kind: 'referrer', category: 'main', en: 'your-referrer', fa: 'your-referrer', title: { en: 'Your referrer', fa: 'معرف تو' }, guide: { en: 'Members can see referral help and their invite code here.', fa: 'راهنمای معرفی و کد دعوت اعضا این‌جا میاد.' }, preview: { en: 'Referral codes help your community grow.', fa: 'کدهای معرفی کمک می‌کنن کامیونیتی‌تون بزرگ‌تر بشه.' }, defaultOn: false },
-  { kind: 'shop', category: 'main', en: 'shop', fa: 'shop', title: { en: 'Shop', fa: 'فروشگاه' }, guide: { en: 'Members find coin packs and bot extras here.', fa: 'بسته‌های سکه و امکانات ربات این‌جا معرفی می‌شن.' }, preview: { en: 'The shop is open. Pick a coin pack.', fa: 'فروشگاه بازه. یه بستهٔ سکه انتخاب کن.' }, defaultOn: false },
-  { kind: 'themes', category: 'extras', en: 'themes', fa: 'themes', title: { en: 'Themes', fa: 'تم‌ها' }, guide: { en: 'Show the card themes members can use.', fa: 'تم‌های کارت قابل استفادهٔ اعضا این‌جا دیده می‌شن.' }, preview: { en: 'Make your anonymous card feel like you.', fa: 'کارت ناشناست رو شبیه خودت کن.' }, defaultOn: false },
-  { kind: 'peakopass', category: 'extras', en: 'peakopass', fa: 'peakopass', title: { en: 'peakopass', fa: 'peakopass' }, guide: { en: 'Daily rewards and season pass updates go here.', fa: 'هدیه‌های روزانه و خبرهای فصل این‌جا میاد.' }, preview: { en: 'Today\'s peakopass reward is ready.', fa: 'هدیهٔ امروز peakopass آماده‌ست.' }, defaultOn: false },
-  { kind: 'quests', category: 'extras', en: 'quests', fa: 'quests', title: { en: 'Quests', fa: 'ماموریت‌ها' }, guide: { en: 'Members can find small quests and rewards here.', fa: 'ماموریت‌های کوچیک و جایزه‌ها این‌جا قرار می‌گیرن.' }, preview: { en: 'A new quest is open today.', fa: 'امروز یک ماموریت تازه بازه.' }, defaultOn: false },
+  { kind: 'inbox', slug: 'inbox', defaultOn: true, title: { en: 'Inbox', fa: 'صندوق نامه‌ها' }, guide: { en: 'Private anonymous messages arrive here. Each member opens their own private thread.', fa: 'نامه‌های ناشناس خصوصی این‌جا می‌رسن و هر عضو ریسمان خصوصی خودش رو باز می‌کنه.' }, preview: { en: 'A new anonymous message is waiting in your private inbox.', fa: 'یک نامهٔ ناشناس تازه توی صندوق خصوصی‌ات منتظره.' } },
+  { kind: 'links', slug: 'talk-to-me', defaultOn: true, title: { en: 'Talk to me', fa: 'با من حرف بزن' }, guide: { en: 'Members get and share their personal anonymous link here, so friends can write to them without showing who they are.', fa: 'اعضا لینک ناشناس شخصی‌شون رو این‌جا می‌گیرن و می‌ذارن تا بقیه بدون دیده‌شدن هویتشون بهشون پیام بدن.' }, preview: { en: 'Your anonymous link is ready to share.', fa: 'لینک ناشناست آمادهٔ اشتراکه.' } },
+  { kind: 'hub', slug: 'anonymous', defaultOn: true, title: { en: 'Anonymous hub', fa: 'منوی ناشناس' }, guide: { en: 'The main peekaboo menu: send, chat, profile, wallet, inbox and help.', fa: 'منوی اصلی peekaboo: ارسال، چت، پروفایل، کیف پول، صندوق و راهنما.' }, preview: { en: 'Choose an anonymous action below.', fa: 'یکی از کارهای ناشناس رو از پایین انتخاب کن.' } },
+  { kind: 'welcome', slug: 'start-here', defaultOn: false, title: { en: 'Start here', fa: 'از این‌جا شروع کن' }, guide: { en: 'A friendly welcome: rules, profile, then a link to the anonymous hub. New members land here first.', fa: 'خوش‌آمد دوستانه: قوانین، پروفایل و بعد لینک به منوی ناشناس. اعضای تازه اول این‌جا میان.' }, preview: { en: 'Welcome. Start here to meet peekaboo.', fa: 'خوش اومدی. از این‌جا با peekaboo آشنا شو.' } },
+  { kind: 'referral', slug: 'referrals', defaultOn: false, title: { en: 'Invite friends', fa: 'دعوت دوستان' }, guide: { en: 'Members enter the code of the person who invited them here, and the inviter earns coins.', fa: 'اعضا این‌جا کد معرفشون رو وارد می‌کنن و کسی که دعوت کرده سکه می‌گیره.' }, preview: { en: 'Referral codes help your community grow.', fa: 'کدهای معرفی کمک می‌کنن کامیونیتی‌تون بزرگ‌تر بشه.' } },
+  { kind: 'shop', slug: 'shop', defaultOn: false, title: { en: 'Shop', fa: 'فروشگاه' }, guide: { en: 'A coin shop board with the packages and payment methods that are switched on right now.', fa: 'تابلوی فروشگاه سکه با بسته‌ها و روش‌های پرداختی که الان روشنن.' }, preview: { en: 'The shop is open. Pick a coin pack.', fa: 'فروشگاه بازه. یه بستهٔ سکه انتخاب کن.' } },
+  { kind: 'themes', slug: 'themes', defaultOn: false, title: { en: 'Themes', fa: 'تم‌ها' }, guide: { en: 'Browse the theme menu and wear the looks you own.', fa: 'منوی تم‌ها رو ببین و ظاهرهایی که داری رو بپوش.' }, preview: { en: 'Make your anonymous card feel like you.', fa: 'کارت ناشناست رو شبیه خودت کن.' } },
+  { kind: 'peakopass', slug: 'peakopass', defaultOn: false, title: { en: 'peakopass', fa: 'پیکوپس' }, guide: { en: 'A menu for the pass, daily rewards and season progress.', fa: 'منوی پس، هدیه‌های روزانه و پیشرفت فصل.' }, preview: { en: 'Today\'s peakopass reward is ready.', fa: 'هدیهٔ امروز peakopass آماده‌ست.' } },
+  { kind: 'quests', slug: 'quests', defaultOn: false, title: { en: 'Quests', fa: 'ماموریت‌ها' }, guide: { en: 'The quest board for the daily season tasks.', fa: 'تابلوی ماموریت‌های روزانهٔ فصل.' }, preview: { en: 'A new quest is open today.', fa: 'امروز یک ماموریت تازه بازه.' } },
 ];
-function ownerMockGuild(id, name) {
-  return { id, name, icon: '', botIn: true, kinds: OWNER_KINDS.map((x, i) => ({ ...x, name: { en: x.en, fa: x.fa }, exists: i === 0 || i === 2, channelId: i === 0 ? `${id}-inbox` : i === 2 ? `${id}-hub` : null, locked: false })) };
+const OWNER_GROUPS = ['default', 'start', 'extras'];
+const ownerGroupOf = (k) => (k.defaultOn ? 'default' : (k.kind === 'welcome' || k.kind === 'referral') ? 'start' : 'extras');
+function ownerNormalize(k) {
+  const m = OWNER_KINDS.find((x) => x.kind === k.kind) || {};
+  const defaultOn = k.defaultOn ?? m.defaultOn ?? false;
+  return { kind: k.kind, enabled: Boolean(k.enabled ?? defaultOn), exists: Boolean(k.exists), defaultOn, locked: Boolean(k.locked), slug: m.slug || k.kind, title: m.title || k.title || { en: k.kind, fa: k.kind }, guide: m.guide || k.guide || {}, preview: m.preview || k.preview || {} };
 }
-OWNER.guilds = [ownerMockGuild('demo-1', 'Lofi Lounge'), ownerMockGuild('demo-2', LANG === 'fa' ? 'گیمرهای شب' : 'Night Gamers')];
-function ownerGuild() { return OWNER.guilds.find((g) => g.id === OWNER.selectedGuild) || OWNER.guilds[0]; }
-function ownerKind() { const g = ownerGuild(); return g?.kinds.find((x) => x.kind === OWNER.selectedKind) || g?.kinds[0]; }
-function ownerEnabled(k) { const g = ownerGuild(); return !!OWNER.changed[`${g.id}:${k.kind}`] ?? !!k.defaultOn; }
-function ownerIsOn(k) { const g = ownerGuild(); const key = `${g.id}:${k.kind}`; return Object.prototype.hasOwnProperty.call(OWNER.changed, key) ? OWNER.changed[key] : !!k.defaultOn; }
-function ownerToggled() { return Object.keys(OWNER.changed).length > 0; }
-function ownerCategoryLabel(c) { return t(`owner.${c}`); }
-function ownerServersView() {
+function ownerDemoGuild(id, name, have) {
+  return { id, name, icon: '', loaded: true, kinds: OWNER_KINDS.map((m) => ownerNormalize({ kind: m.kind, defaultOn: m.defaultOn, enabled: have.includes(m.kind), exists: have.includes(m.kind) })) };
+}
+let OWNER = { state: 'idle', error: '', guilds: [], selectedGuild: '', selectedKind: '', changed: {}, applying: false, demo: [ownerDemoGuild('demo-1', 'Lofi Lounge', ['inbox', 'links', 'hub']), ownerDemoGuild('demo-2', 'Night Gamers', ['inbox', 'links', 'hub', 'welcome'])] };
+const ownerList = () => (S.live ? OWNER.guilds : OWNER.demo);
+function ownerGuild() { const l = ownerList(); return l.find((g) => g.id === OWNER.selectedGuild) || l[0]; }
+function ownerKind(g) { const l = g?.kinds || []; return l.find((x) => x.kind === OWNER.selectedKind) || l[0]; }
+const ownerKey = (g, k) => `${g.id}:${k.kind}`;
+const ownerIsOn = (g, k) => (Object.prototype.hasOwnProperty.call(OWNER.changed, ownerKey(g, k)) ? OWNER.changed[ownerKey(g, k)] : k.enabled);
+const ownerChangedCount = (g) => Object.keys(OWNER.changed).filter((x) => g && x.startsWith(`${g.id}:`)).length;
+const ownerPick = (o) => (o && (o[LANG] || o.en)) || '';
+function ownerToggle(kind) {
+  const g = ownerGuild(); const k = g?.kinds?.find((x) => x.kind === kind);
+  if (!k) return;
+  const next = !ownerIsOn(g, k);
+  if (next === k.enabled) delete OWNER.changed[ownerKey(g, k)]; else OWNER.changed[ownerKey(g, k)] = next;
+  OWNER.selectedKind = kind;
+  renderApp();
+}
+function ownerSelect(id) {
+  OWNER.selectedGuild = id; OWNER.selectedKind = '';
   const g = ownerGuild();
-  if (!g) return `${vhead(t('owner.servers'), t('owner.choose'))}`;
-  const k = ownerKind() || g.kinds[0];
-  const cats = ['info', 'main', 'extras'];
-  const rail = OWNER.guilds.map((x) => `<button type="button" class="${x.id === g.id ? 'sel' : ''}" data-owner-guild="${esc(x.id)}" title="${esc(x.name)}">${x.icon ? `<img src="${esc(x.icon)}" alt="">` : esc([...x.name][0] || '?')}</button>`).join('');
-  const channels = cats.map((c) => `<div class="owner-cat">${esc(ownerCategoryLabel(c).toUpperCase())}</div>${g.kinds.filter((x) => x.category === c).map((x) => `<button type="button" class="owner-channel${x.kind === k.kind ? ' sel' : ''}" data-owner-kind="${esc(x.kind)}"><span class="owner-hash">#</span><span class="owner-channel-name">${esc((x.name && (x.name[LANG] || x.name.en)) || x[LANG] || x.en)}</span><span>${x.defaultOn ? `<small class="owner-recommended">${esc(t('owner.recommended'))}</small>` : ''}${x.exists ? `<small class="owner-exists">${esc(t('owner.exists'))}</small>` : ''}</span></button>`).join('')}`).join('');
-  const enabled = ownerIsOn(k);
-  const buttonText = (k.name && (k.name[LANG] || k.name.en)) || k[LANG] || k.en;
-  return `${vhead(t('owner.servers'), t('owner.choose'))}<div class="owner-servers" dir="ltr"><aside class="owner-rail">${rail}</aside><aside class="owner-channels"><div class="owner-server-title">${esc(g.name)}</div><div class="owner-channel-scroll">${channels}</div></aside><section class="owner-pane" dir="${LANG === 'fa' ? 'rtl' : 'ltr'}"><div class="owner-pane-head"><h2>${esc((k.title && (k.title[LANG] || k.title.en)) || buttonText)}</h2><p>${esc(ownerCategoryLabel(k.category))} · #${esc(buttonText)}</p></div><div class="owner-preview"><div class="owner-preview-label">${esc(t('owner.guide'))}</div><p>${esc((k.guide && (k.guide[LANG] || k.guide.en)) || '')}</p><div class="owner-preview-label">${esc(t('owner.preview'))}</div><div class="owner-message"><span class="owner-avatar">p</span><div><b>peekaboo</b><span class="owner-bot">${esc(t('owner.bot'))}</span><time>Today</time><div class="owner-card">${esc((k.preview && (k.preview[LANG] || k.preview.en)) || '')}<div class="owner-buttons"><button type="button">${esc(t('owner.mockButton'))}</button><button type="button">${esc(t('owner.mockButton2'))}</button></div></div></div></div></div></div><div class="owner-bottom"><span class="owner-note">${esc(t('owner.keep'))}</span><button type="button" data-owner-apply ${ownerToggled() ? '' : 'disabled'}>${esc(t('owner.apply'))}</button></div></section></div>`;
+  renderApp();
+  if (S.live && g && !g.kinds && !g.loading) ownerLoadGuild(g);
+}
+async function ownerLoad(force = false) {
+  if (!S.live || OWNER.state === 'loading' || (OWNER.state === 'ready' && !force)) return;
+  OWNER.state = 'loading'; OWNER.error = ''; renderApp();
+  try {
+    const list = await webApi('/web/owner/servers');
+    OWNER.guilds = (Array.isArray(list) ? list : []).filter((x) => x.botIn !== false).map((x) => ({ id: String(x.id), name: x.name || String(x.id), icon: x.icon ? (/^https?:/.test(x.icon) ? x.icon : `https://cdn.discordapp.com/icons/${x.id}/${x.icon}.png?size=96`) : '', kinds: null, loading: false, error: '' }));
+    OWNER.state = OWNER.guilds.length ? 'ready' : 'empty';
+    if (OWNER.guilds.length && !OWNER.guilds.some((g) => g.id === OWNER.selectedGuild)) OWNER.selectedGuild = OWNER.guilds[0].id;
+    renderApp();
+    if (OWNER.guilds.length) await ownerLoadGuild(ownerGuild());
+  } catch (e) { OWNER.state = 'error'; OWNER.error = e.status === 404 || e.status === 401 ? 'update' : 'net'; renderApp(); }
+}
+async function ownerLoadGuild(g, quiet = false) {
+  if (!g || g.loading) return;
+  g.loading = true; g.error = '';
+  if (!quiet) renderApp();
+  try {
+    const r = await webApi(`/web/owner/channels?guild=${encodeURIComponent(g.id)}`);
+    g.name = r.guild?.name || g.name;
+    g.kinds = (r.kinds || []).filter((x) => !x.officialOnly && x.kind !== 'reports').map(ownerNormalize);
+  } catch (e) { g.error = e.status === 403 ? 'perm' : 'net'; if (!quiet) g.kinds = null; }
+  g.loading = false; renderApp();
+}
+async function ownerApply() {
+  const g = ownerGuild();
+  if (!g || OWNER.applying || !ownerChangedCount(g)) return;
+  const kinds = g.kinds.filter((k) => ownerIsOn(g, k)).map((k) => k.kind);
+  OWNER.applying = true; renderApp();
+  try {
+    if (S.live) await webApi('/web/owner/channels', { guild: g.id, kinds });
+    g.kinds.forEach((k) => { k.enabled = kinds.includes(k.kind); if (!S.live && k.enabled) k.exists = true; });
+    Object.keys(OWNER.changed).filter((x) => x.startsWith(`${g.id}:`)).forEach((x) => delete OWNER.changed[x]);
+    toast(t('owner.started'), 'settings');
+    if (S.live) { setTimeout(() => ownerLoadGuild(g, true), 4000); setTimeout(() => ownerLoadGuild(g, true), 12000); }
+  } catch (e) { toast(t(e.status === 403 ? 'owner.errPerm' : 'owner.error')); }
+  OWNER.applying = false; renderApp();
+}
+const ownerBox = (text, retry = '') => `<div class="owner-state"><p>${esc(text)}</p>${retry ? `<button type="button" class="btn btn-white btn-sm" data-owner-retry="${retry}">${esc(t('owner.retry'))}</button>` : ''}</div>`;
+function ownerServersView() {
+  const head = vhead(t('owner.servers'), t('owner.choose'));
+  if (S.live) {
+    if (OWNER.state === 'idle') setTimeout(() => ownerLoad(), 0);
+    if (OWNER.state === 'idle' || OWNER.state === 'loading') return head + ownerBox(t('owner.loading'));
+    if (OWNER.state === 'error') return head + ownerBox(t(OWNER.error === 'update' ? 'owner.errUpdate' : 'owner.errNet'), 'all');
+    if (OWNER.state === 'empty') return head + ownerBox(t('owner.empty'));
+  }
+  const g = ownerGuild();
+  if (!g) return head + ownerBox(t('owner.empty'));
+  const rail = ownerList().map((x) => `<button type="button" class="${x.id === g.id ? 'sel' : ''}" data-owner-guild="${esc(x.id)}" title="${esc(x.name)}">${x.icon ? `<img src="${esc(x.icon)}" alt="">` : esc([...x.name][0] || '?')}</button>`).join('');
+  let list = '', pane = '', bottom = '';
+  if (g.kinds) {
+    const k = ownerKind(g);
+    list = OWNER_GROUPS.map((gr) => {
+      const rows = g.kinds.filter((x) => ownerGroupOf(x) === gr);
+      if (!rows.length) return '';
+      return `<div class="owner-cat">${esc(t(`owner.g.${gr}`).toUpperCase())}</div>${rows.map((x) => {
+        const on = ownerIsOn(g, x);
+        const pending = Object.prototype.hasOwnProperty.call(OWNER.changed, ownerKey(g, x));
+        return `<div class="owner-row${x.kind === k.kind ? ' sel' : ''}"><button type="button" class="owner-pick" data-owner-kind="${esc(x.kind)}"><span class="owner-hash">#</span><span class="owner-pick-text"><span class="owner-channel-name">${esc(x.slug)}</span><span class="owner-chips">${x.exists ? `<small class="owner-exists">${esc(t('owner.exists'))}</small>` : ''}${x.defaultOn && !x.exists ? `<small class="owner-recommended">${esc(t('owner.recommended'))}</small>` : ''}${pending ? `<small class="owner-pending">${esc(t('owner.pending'))}</small>` : ''}</span></span></button><button type="button" class="owner-sw" role="switch" aria-checked="${on}" aria-label="${esc(ownerPick(x.title))}" data-owner-toggle="${esc(x.kind)}"></button></div>`;
+      }).join('')}`;
+    }).join('');
+    const on = ownerIsOn(g, k);
+    pane = `<div class="owner-pane-head"><h2>${esc(ownerPick(k.title))}</h2><p>${esc(t(`owner.g.${ownerGroupOf(k)}`))} · #${esc(k.slug)}</p></div><div class="owner-preview"><div class="owner-setup"><div><b>${esc(t('owner.setup'))}</b><small>${esc(k.exists ? t('owner.setupHave') : t('owner.setupNew'))}</small></div><button type="button" class="owner-sw" role="switch" aria-checked="${on}" aria-label="${esc(t('owner.setup'))}" data-owner-toggle="${esc(k.kind)}"></button></div><div class="owner-preview-label">${esc(t('owner.guide'))}</div><p>${esc(ownerPick(k.guide))}</p><div class="owner-preview-label">${esc(t('owner.preview'))}</div><div class="owner-message"><span class="owner-avatar">p</span><div><b>peekaboo</b><span class="owner-bot">${esc(t('owner.bot'))}</span><time>${esc(t('owner.today'))}</time><div class="owner-card">${esc(ownerPick(k.preview))}<div class="owner-buttons"><button type="button" tabindex="-1">${esc(t('owner.mockButton'))}</button><button type="button" tabindex="-1">${esc(t('owner.mockButton2'))}</button></div></div></div></div></div>`;
+    const n = ownerChangedCount(g);
+    bottom = `<div class="owner-bottom"><span class="owner-note">${esc(n ? `${n} ${t('owner.changes')}` : t('owner.keep'))}</span><span class="owner-bottom-btns">${n ? `<button type="button" class="owner-ghost" data-owner-reset>${esc(t('owner.undo'))}</button>` : ''}<button type="button" data-owner-apply ${n && !OWNER.applying ? '' : 'disabled'}>${esc(OWNER.applying ? t('owner.applying') : t('owner.apply'))}</button></span></div>`;
+  } else if (g.error) pane = ownerBox(t(g.error === 'perm' ? 'owner.errPerm' : 'owner.errNet'), 'guild');
+  else pane = ownerBox(t('owner.loading'));
+  return `${head}<div class="owner-servers" dir="ltr"><aside class="owner-rail">${rail}</aside><aside class="owner-channels"><div class="owner-server-title">${esc(g.name)}</div><div class="owner-channel-scroll">${list}</div></aside><section class="owner-pane" dir="${LANG === 'fa' ? 'rtl' : 'ltr'}">${pane}${bottom}</section></div>`;
 }
 VIEWS.servers = ownerServersView;
+Object.assign(T.en, { 'owner.g.default': 'Default for new servers', 'owner.g.start': 'Start and invites', 'owner.g.extras': 'Extras', 'owner.loading': 'Loading your servers...', 'owner.empty': 'No server found. You need Administrator or Manage Server in a server where peekaboo is added.', 'owner.errNet': 'Could not reach the bot. Check your connection and try again.', 'owner.errUpdate': 'The server tools are not live on the bot yet. Try again after the bot update.', 'owner.errPerm': 'You need Administrator or Manage Server in this server.', 'owner.retry': 'Try again', 'owner.changes': 'unsaved changes', 'owner.undo': 'Undo', 'owner.pending': 'pending', 'owner.setup': 'Have this channel in the server', 'owner.setupHave': 'It already exists. Switched off here only stops the bot from re-making it.', 'owner.setupNew': 'Switch on and press Apply: the bot creates it.', 'owner.today': 'Today', 'owner.recommended': 'Default' });
+Object.assign(T.fa, { 'owner.g.default': 'پیش‌فرض سرورهای تازه', 'owner.g.start': 'شروع و دعوت', 'owner.g.extras': 'امکانات اضافه', 'owner.loading': 'دارم سرورهات رو میارم...', 'owner.empty': 'سروری پیدا نشد. باید توی سروری که peekaboo داخلشه ادمین یا مدیر سرور باشی.', 'owner.errNet': 'به ربات وصل نشدم. اینترنتت رو چک کن و دوباره امتحان کن.', 'owner.errUpdate': 'ابزار سرور هنوز روی ربات فعال نشده. بعد از آپدیت ربات دوباره امتحان کن.', 'owner.errPerm': 'توی این سرور باید ادمین یا مدیر سرور باشی.', 'owner.retry': 'دوباره امتحان کن', 'owner.changes': 'تغییر ذخیره‌نشده', 'owner.undo': 'برگردون', 'owner.pending': 'منتظر اعمال', 'owner.setup': 'این کانال توی سرور باشه', 'owner.setupHave': 'از قبل وجود داره. خاموش‌کردنش فقط جلوی ساخت دوبارهٔ ربات رو می‌گیره.', 'owner.setupNew': 'روشنش کن و اعمال رو بزن: ربات می‌سازدش.', 'owner.today': 'امروز', 'owner.recommended': 'پیش‌فرض' });
+document.head.insertAdjacentHTML('beforeend', '<style>.owner-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;border-radius:5px;padding-right:8px}.owner-row:hover,.owner-row.sel{background:#3f4147}.owner-pick{border:0;background:none;color:#949ba4;display:grid;grid-template-columns:20px minmax(0,1fr);gap:5px;align-items:center;padding:8px;text-align:start;cursor:pointer;min-width:0;font:inherit}.owner-row.sel .owner-pick,.owner-row:hover .owner-pick{color:#f2f3f5}.owner-pick-text{display:flex;flex-direction:column;min-width:0}.owner-chips{display:flex;gap:6px;flex-wrap:wrap}.owner-pending{font-size:10px;color:#f0b232}.owner-sw{width:38px;height:22px;border-radius:11px;border:0;background:#4e5058;position:relative;cursor:pointer;flex:none;transition:background .15s}.owner-sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}.owner-sw[aria-checked="true"]{background:#23a55a}.owner-sw[aria-checked="true"]::after{left:19px}.owner-setup{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;margin-bottom:18px;border-radius:8px;background:#232428;color:#f2f3f5}.owner-setup small{display:block;color:#b5bac1;margin-top:3px}.owner-state{margin:30px;padding:26px;border-radius:14px;background:#2b2d31;color:#dbdee1;text-align:center}.owner-state p{margin:0 0 14px}.owner-bottom-btns{display:flex;gap:10px;align-items:center}.owner-bottom .owner-ghost{background:transparent;color:#dbdee1;text-decoration:underline;padding:10px 6px}</style>');
 
 function referralMarkup() {
   const locked = REF.locked || !!REF.code;
@@ -4726,37 +4809,9 @@ function referralMarkup() {
 const oldLinkViewV31 = VIEWS.link;
 VIEWS.link = function () { return `${oldLinkViewV31()}${referralMarkup()}`; };
 
-async function ownerLoad() {
-  if (!S.live) return;
-  try {
-    const servers = await webApi('/web/owner/servers');
-    OWNER.guilds = (servers || []).filter((x) => x.botIn).map((x) => ({ ...x, kinds: [] }));
-    if (!OWNER.guilds.length) return;
-    OWNER.selectedGuild = OWNER.guilds[0].id;
-    const r = await webApi(`/web/owner/channels?guild=${encodeURIComponent(OWNER.selectedGuild)}`);
-    const g = OWNER.guilds[0];
-    g.name = r.guild?.name || g.name;
-    g.kinds = (r.kinds || []).filter((x) => !x.officialOnly && x.kind !== 'reports');
-    OWNER.loaded = true;
-    renderApp();
-  } catch { toast(t('owner.error')); }
-}
 async function referralLoad() {
   if (!S.live) return;
   try { const r = await webApi('/web/referral'); REF = { ...REF, ...r, draft: '', inviter: '' }; renderApp(); } catch { toast(t('ref.failed')); }
-}
-async function ownerApply() {
-  const g = ownerGuild();
-  if (!g || !ownerToggled() || OWNER.applying) return;
-  const kinds = g.kinds.filter(ownerIsOn).map((x) => x.kind);
-  OWNER.applying = true; renderApp();
-  try {
-    if (S.live) await webApi('/web/owner/channels', { guild: g.id, kinds });
-    OWNER.changed = {};
-    g.kinds.forEach((x) => { if (kinds.includes(x.kind)) x.exists = true; });
-    toast(t('owner.started'), 'settings');
-  } catch { toast(t('owner.error')); }
-  OWNER.applying = false; renderApp();
 }
 function refInputValue(id) { return ($(id)?.value || '').trim().toUpperCase(); }
 function validReferralCode(v) { return /^[A-Z0-9_]{3,16}$/.test(v); }
@@ -4834,7 +4889,10 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => { if (e.target.id === 'pay-file') receiptPreview(e.target.files?.[0]); });
 document.addEventListener('click', (e) => {
   const el = e.target.closest('button'); if (!el) return; const d = el.dataset;
-  if (d.ownerGuild) { OWNER.selectedGuild = d.ownerGuild; OWNER.selectedKind = 'inbox'; OWNER.changed = {}; renderApp(); return; }
+  if (d.ownerGuild) { ownerSelect(d.ownerGuild); return; }
+  if (d.ownerToggle) { ownerToggle(d.ownerToggle); return; }
+  if (d.ownerReset !== undefined) { const g = ownerGuild(); Object.keys(OWNER.changed).filter((x) => g && x.startsWith(`${g.id}:`)).forEach((x) => delete OWNER.changed[x]); renderApp(); return; }
+  if (d.ownerRetry) { if (d.ownerRetry === 'all') { OWNER.state = 'idle'; ownerLoad(); } else ownerLoadGuild(ownerGuild()); return; }
   if (d.ownerKind) { OWNER.selectedKind = d.ownerKind; renderApp(); return; }
   if (d.ownerApply !== undefined) { ownerApply(); return; }
   if (d.refCopy !== undefined) { try { navigator.clipboard.writeText(REF.code || ''); } catch {} toast(t('ref.copied'), 'link'); return; }
