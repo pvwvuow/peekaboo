@@ -4225,6 +4225,9 @@ const artUrl = (f) => {
     const k = f.slice(3);
     return /^\d{15,25}\/[a-z0-9_]{8,64}$/.test(k) ? `https://cdn.discordapp.com/avatars/${k}.png?size=128` : defaultAvatar();
   }
+  // v32.2: card backgrounds are real files, not embedded art. Before, every name that was not embedded fell back to the chick.
+  // The Aurora and Isfahan backgrounds are served from the bot's bucket until they are copied into assets/.
+  if (/^(?:bg|look)-[\w-]+\.jpg$/.test(f)) return /^bg-(?:polar|isfahan)-/.test(f) ? `https://kldveaearhpvfcxpmiop.supabase.co/storage/v1/object/public/peekaboo/${f}` : `assets/${f}`;
   const n = f.replace(/^art-/, '').replace(/\.(png|webp|jpg)$/, '');
   return img(n) || img(n.replace(/\d+$/, '')) || img('idle');
 };
