@@ -4330,7 +4330,8 @@ function sxState() {
   if (!sh.mix) sh.mix = { ...sh.on };
   if (!sh.prod) sh.prod = 'all';
   if (!sh.f) sh.f = { style: [], color: [], rar: [], saved: false, owned: false };
-  if (!sh.theme || sh.theme === 'all') sh.theme = THEMES[0].id;
+  if (!sh.sxInit) { sh.sxInit = true; if (!sh.theme || sh.theme === 'pirate') sh.theme = 'all'; }
+  if (!sh.theme) sh.theme = 'all';
   return sh;
 }
 const sxTagsOf = (id) => SX_TAGS[id] || { style: '', color: [] };
@@ -4419,7 +4420,8 @@ function sxRows() {
   const sh = sxState();
   const list = sxList();
   if (!list.length) return `<p class="sx-empty">${esc(t('sx.none'))}</p>`;
-  return `<ul class="sx-rows">${list.map((th) => {
+  const allRow = `<li><button type="button" class="sx-row sx-allrow${sh.theme === 'all' ? ' sel' : ''}" data-sx-theme="all" data-sx-focus="t:all" aria-current="${sh.theme === 'all'}"><span class="sx-allic" aria-hidden="true">\u25a6</span><span class="sx-row-t"><b>${esc(t('sx.allThemes'))}</b><small>${esc(t('sx.shown', { n: list.length, m: THEMES.length }))}</small></span></button></li>`;
+  return `<ul class="sx-rows">${allRow}${list.map((th) => {
     const have = PARTS.filter((p) => owns(`${th.id}:${p}`)).length;
     const sel = sh.theme === th.id;
     const fav = SXF.includes(th.id);
@@ -4534,7 +4536,26 @@ function sxOfferBanner() {
       <div class="actions">${d ? `<button class="btn btn-yolk" data-sbuy="duo:${a},${b}">${esc(t('sh.buy'))} ${coin(d.price)}</button><s class="was num">${fmt(d.was)}</s><small class="sx-save2">${esc(t('sx.youSave', { n: fmt(d.was - d.price) }))}</small>` : ''}</div></div>${pic('bundle')}</div>
   </article>`;
 }
+function sxOverview() {
+  const list = sxList();
+  const kindName = (k) => t(k === 'panel' ? 'sx.pCard' : 'sx.pLink');
+  const tiles = list.map((th) => {
+    const all = Object.fromEntries(PARTS.map((p) => [p, th.id]));
+    const have = PARTS.filter((p) => owns(`${th.id}:${p}`)).length;
+    const left = packLeft(th.id);
+    const fav = SXF.includes(th.id);
+    const prod = (k) => `<button type="button" class="sx-prod" data-sx-open="${th.id}:${k}" aria-label="${esc(`${L(th.n)}: ${kindName(k)}, ${t('sx.seePieces')}`)}"><span class="sx-prod-h"><b>${esc(kindName(k))}</b><small>${esc(t('sx.seePieces'))}</small></span><span class="sx-prod-pv">${sxCard(k, all)}</span></button>`;
+    return `<article class="sx-th${isLeg(th.id) ? ` ${rar(th.id)}` : ''}"><header class="sx-th-h">${pic(`theme-${th.id}`, 'sx-orb')}<div class="sx-th-t"><h3>${esc(L(th.n))}</h3><small>${isLeg(th.id) ? `\u2605 ${esc(t(`sx.rar.${rar(th.id)}`))} \u00b7 ` : ''}${esc(have ? t('sx.have', { n: have }) : t(`sx.style.${sxTagsOf(th.id).style || 'scene'}`))}</small></div>
+      <div class="sx-th-a"><button type="button" class="sx-fav${fav ? ' on' : ''}" aria-pressed="${fav}" aria-label="${esc(t(fav ? 'sx.savedOne' : 'sx.save'))}: ${esc(L(th.n))}" data-sx-fav="${th.id}" data-sx-focus="ofav:${th.id}">${fav ? '\u2665' : '\u2661'}</button>${left.length ? `<button type="button" class="btn btn-yolk btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : `<span class="stchip st-g">${esc(t('sh.ownedAll'))}</span>`}</div></header>
+      <div class="sx-th-prods">${prod('panel')}${prod('share')}</div></article>`;
+  }).join('');
+  return `<section class="sx-col sx-main" aria-label="${esc(t('sx.allThemes'))}"><header class="sx-ovh"><h2>${esc(t('sx.allThemes'))}</h2><p>${esc(t('sx.allP'))}</p></header>${list.length ? `<div class="sx-grid">${tiles}</div>` : `<p class="sx-empty">${esc(t('sx.none'))}</p>`}</section>`;
+}
 function sxMain() {
+  if (sxState().theme === 'all') return sxOverview();
+  return sxDetail();
+}
+function sxDetail() {
   const sh = sxState();
   const th = themeOf(sh.theme);
   if (!th) return `<section class="sx-col sx-main"><p class="sx-empty">${esc(t('sx.none'))}</p></section>`;
@@ -4562,6 +4583,7 @@ function sxMain() {
         <div class="sx-tile-a"><button type="button" class="btn btn-sm ${inMix ? 'btn-yolk' : 'btn-white'}" aria-pressed="${inMix}" data-sx-use="${p}:${th.id}" data-sx-focus="use:${p}">${esc(t(inMix ? 'sx.inMix' : 'sx.addMix'))}</button>${act}</div></div></article>`;
   }).join('');
   return `<section class="sx-col sx-main" aria-label="${esc(L(th.n))}">
+    <button type="button" class="sx-link sx-back" data-sx-theme="all" data-sx-focus="t:all">${esc(t('sx.back'))}</button>
     <header class="sx-head${th.rarity ? ` ${th.rarity}` : ''}">${pic(`theme-${th.id}`, 'sx-orb')}<div class="sx-head-t">${isLeg(th.id) ? `<span class="rar-chip ${rar(th.id)}">★ ${esc(t(`sx.rar.${rar(th.id)}`))}</span>` : ''}<h2>${esc(L(th.n))}</h2><p>${esc(L(th.d))}</p></div>
       <div class="sx-head-a"><button type="button" class="btn btn-white btn-sm" aria-pressed="${fav}" data-sx-fav="${th.id}" data-sx-focus="hfav">${fav ? '♥' : '♡'} ${esc(t(fav ? 'sx.savedOne' : 'sx.save'))}</button>
         <button type="button" class="btn ${mixAll ? 'btn-yolk' : 'btn-white'} btn-sm" aria-pressed="${mixAll}" data-sx-whole="${th.id}" data-sx-focus="whole">${esc(t(mixAll ? 'sx.wholeIn' : 'sx.wholeAdd'))}</button>
@@ -4583,11 +4605,12 @@ document.addEventListener('click', (e) => {
   const q = (s) => e.target.closest(s);
   let el;
   const sh = () => sxState();
-  if ((el = q('[data-sx-f]'))) { const [g, id] = el.dataset.sxF.split(':'); const a = sh().f[g]; const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); const l = sxList(); if (l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
-  if ((el = q('[data-sx-flag]'))) { const f = sh().f; f[el.dataset.sxFlag] = !f[el.dataset.sxFlag]; const l = sxList(); if (l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
-  if ((el = q('[data-sx-act="clear"]'))) { sh().f = { style: [], color: [], rar: [], saved: false, owned: false }; sh().q = ''; sxRender('t:' + sh().theme); return; }
+  if ((el = q('[data-sx-f]'))) { const [g, id] = el.dataset.sxF.split(':'); const a = sh().f[g]; const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); else a.push(id); const l = sxList(); if (sh().theme !== 'all' && l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-flag]'))) { const f = sh().f; f[el.dataset.sxFlag] = !f[el.dataset.sxFlag]; const l = sxList(); if (sh().theme !== 'all' && l.length && !l.some((x) => x.id === sh().theme)) sh().theme = l[0].id; sxRender(el.dataset.sxFocus); return; }
+  if ((el = q('[data-sx-act="clear"]'))) { sh().f = { style: [], color: [], rar: [], saved: false, owned: false }; sh().q = ''; sxRender(sh().theme === 'all' ? 'clear' : 't:' + sh().theme); return; }
   if ((el = q('[data-sx-untag]'))) { const [g, id] = el.dataset.sxUntag.split(':'); if (g === 'flag') sh().f[id] = false; else sh().f[g] = sh().f[g].filter((x) => x !== id); sxRender('clear'); return; }
-  if ((el = q('[data-sx-theme]'))) { sh().theme = el.dataset.sxTheme; track('view', sh().theme); sxRender(el.dataset.sxFocus); if (matchMedia('(max-width: 1000px)').matches) { const m = document.querySelector('.sx-main'); if (m) scrollTo({ top: m.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); } return; }
+  if ((el = q('[data-sx-open]'))) { const [id, kind] = el.dataset.sxOpen.split(':'); sh().theme = id; sh().prod = kind || 'all'; track('view', id); sxRender('back'); const m = document.querySelector('.sx-wrap .sx'); if (m) scrollTo({ top: Math.max(0, m.getBoundingClientRect().top + scrollY - 72), behavior: 'auto' }); return; }
+  if ((el = q('[data-sx-theme]'))) { sh().theme = el.dataset.sxTheme; if (sh().theme !== 'all') track('view', sh().theme); sxRender(el.dataset.sxFocus); if (matchMedia('(max-width: 1000px)').matches) { const m = document.querySelector('.sx-main'); if (m) scrollTo({ top: m.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); } return; }
   if ((el = q('[data-sx-fav]'))) { const id = el.dataset.sxFav; const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); else SXF.push(id); sxSaveFav(); sxRender(el.dataset.sxFocus); return; }
   if ((el = q('[data-sx-prod]'))) { const k = el.dataset.sxProd; sh().prod = sh().prod === k ? 'all' : k; sxRender(el.dataset.sxFocus); return; }
   if ((el = q('[data-sx-use]'))) { const [p, id] = el.dataset.sxUse.split(':'); const m = sh().mix; m[p] = m[p] === id ? 'def' : id; if (p === 'border' && (id === 'samurai' || id === 'pirate') && m[p] === id) sh().scene = 'link'; sxRender(el.dataset.sxFocus); return; }
@@ -4656,7 +4679,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @keyframes pcsheen{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
 @media (prefers-reduced-motion:reduce){.pass-cta,.pass-cta .pc-sheen,.pass-cta .pc-gift i{animation:none}}
 @media (max-width:900px){body:not(.drawer-open) .pass-cta{display:none}}
-.sx{display:grid;grid-template-columns:230px minmax(0,1fr) 320px;gap:18px;align-items:start;color:var(--ink)}
+.sx{display:grid;grid-template-columns:clamp(220px,17vw,300px) minmax(0,1fr) clamp(310px,24vw,420px);gap:18px;align-items:start;color:var(--ink)}
 .sx :focus-visible{outline:3px solid var(--blurple);outline-offset:2px;border-radius:10px}
 .sx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .sx-col{background:var(--white);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);min-width:0}
@@ -4753,6 +4776,7 @@ html[lang='fa'] .sx-sect summary{letter-spacing:0;text-transform:none;font-size:
 .sx-fx-n{color:var(--ink-2);font-size:12.5px}
 .sx-dot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
 body.in-app .main:has(.sx-wrap){padding-inline:clamp(12px,1.6vw,24px)}
+body.in-app .main > .view:has(.sx-wrap){width:100%;max-width:none}
 body.in-app .main > .sx-wrap{width:100%;max-width:none}
 .sx-wrap{display:grid;gap:14px}
 .sx-phrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:18px}
@@ -4771,6 +4795,19 @@ body.in-app .main > .sx-wrap{width:100%;max-width:none}
 .sx-duo-p select{min-height:42px;border:0;background:transparent;font:inherit;font-weight:700;color:var(--ink);min-width:120px}
 .sx-plus{font-size:24px;font-weight:800}
 .sx-save2{color:#14573a;font-weight:800;margin-inline-start:8px}
+
+.sx-ovh h2{margin:0;font-size:24px}.sx-ovh p{margin:4px 0 14px;color:var(--ink-2)}
+.sx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:14px}
+@container (max-width:520px){.sx-grid{grid-template-columns:1fr}}
+.sx-th{background:var(--paper);border-radius:var(--r-lg);padding:12px;display:grid;gap:10px;align-content:start}
+.sx-th-h{display:flex;align-items:center;gap:10px}
+.sx-th-h .sx-orb{width:48px;height:48px;object-fit:contain}
+.sx-th-t{flex:1;min-width:0}.sx-th-t h3{margin:0;font-size:18px}.sx-th-t small{color:var(--ink-2)}
+.sx-th-a{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sx-th-prods{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@container (max-width:400px){.sx-th-prods{grid-template-columns:1fr}}
+.sx-allrow .sx-allic{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--paper);font-size:18px}
+.sx-back{margin-bottom:6px;font-weight:700}
 </style>`);
 Object.assign(T.en, {
   'sx.browse': 'Browse', 'sx.search': 'Search themes', 'sx.active': 'Active filters', 'sx.mineH': 'My shop', 'sx.byStyle': 'Art style', 'sx.byColor': 'Colour', 'sx.byRar': 'Rarity', 'sx.saved': 'Saved', 'sx.owned': 'I own pieces', 'sx.clear': 'Clear filters', 'sx.shown': 'Showing {n} of {m} themes', 'sx.none': 'No theme matches these filters.',
@@ -4781,7 +4818,7 @@ Object.assign(T.en, {
   'sx.wholeAdd': 'Use whole theme in my mix', 'sx.wholeIn': 'Whole theme is in my mix', 'sx.addMix': 'Add to my mix', 'sx.inMix': 'In my mix', 'sx.products': 'Products', 'sx.pCard': 'Card', 'sx.pCardP': 'The big card in your panel', 'sx.pLink': 'Link card', 'sx.pLinkP': 'The wide card others see', 'sx.pieces': 'Pieces of the {w}',
   'sx.part.card': 'Background picture', 'sx.part.border': 'Frame around the card', 'sx.part.btn': 'Buttons and badges', 'sx.part.font': 'Lettering',
   'sx.noMixPreview': '{n}: this piece cannot be drawn in a mix yet, so the preview shows the default there. It still works in Discord.', 'sx.wholeLook': 'Shows the whole theme.',
-  'sx.offerChip': '{n}% off', 'sx.offerH': 'Two packs, one price', 'sx.offerP': 'Pick any two theme packs and buy them together for {n}% less.', 'sx.daysLeft': '{n} days left', 'sx.lastDay': 'Ends today', 'sx.pack1': 'First pack', 'sx.pack2': 'Second pack', 'sx.duoQ': 'Buy these two packs?', 'sx.endsIn': 'Ends in', 'sx.d': 'd', 'sx.youSave': 'you save {n}', 'sx.all': 'Both', 'sx.piecesAll': 'Pieces, shown on both cards', 'sx.offerGone': 'That offer is over or you already own one of the packs.',
+  'sx.offerChip': '{n}% off', 'sx.offerH': 'Two packs, one price', 'sx.offerP': 'Pick any two theme packs and buy them together for {n}% less.', 'sx.daysLeft': '{n} days left', 'sx.lastDay': 'Ends today', 'sx.pack1': 'First pack', 'sx.pack2': 'Second pack', 'sx.duoQ': 'Buy these two packs?', 'sx.endsIn': 'Ends in', 'sx.allThemes': 'All themes', 'sx.allP': 'Tap a card or a link card to see its pieces one by one.', 'sx.back': '\u2190 All themes', 'sx.seePieces': 'See pieces', 'sx.d': 'd', 'sx.youSave': 'you save {n}', 'sx.all': 'Both', 'sx.piecesAll': 'Pieces, shown on both cards', 'sx.offerGone': 'That offer is over or you already own one of the packs.',
   'pc.free': 'Free road', 'pc.level': 'Level {n}', 'pc.gift': 'Gift',
 });
 Object.assign(T.fa, {
@@ -4793,7 +4830,7 @@ Object.assign(T.fa, {
   'sx.wholeAdd': 'کل تم رو بذار توی ترکیبم', 'sx.wholeIn': 'کل تم توی ترکیبمه', 'sx.addMix': 'بذار توی ترکیبم', 'sx.inMix': 'توی ترکیبمه', 'sx.products': 'محصولات', 'sx.pCard': 'کارت', 'sx.pCardP': 'کارت بزرگ توی پنل تو', 'sx.pLink': 'لینک‌کارت', 'sx.pLinkP': 'کارت عریضی که بقیه می‌بینن', 'sx.pieces': 'تکه‌های {w}',
   'sx.part.card': 'عکس پس‌زمینه', 'sx.part.border': 'قاب دور کارت', 'sx.part.btn': 'دکمه‌ها و نشان‌ها', 'sx.part.font': 'نوع نوشته',
   'sx.noMixPreview': '{n}: این تکه هنوز توی ترکیب قابل نمایش نیست، برای همین پیش‌نمایش اون قسمت پیش‌فرضه. توی دیسکورد درست کار می‌کنه.', 'sx.wholeLook': 'کل تم نشون داده می‌شه.',
-  'sx.offerChip': '{n}٪ تخفیف', 'sx.offerH': 'دو پک، یک قیمت', 'sx.offerP': 'هر دو پک تمی که خواستی رو با هم بخر و {n}٪ کمتر بده.', 'sx.daysLeft': '{n} روز مونده', 'sx.lastDay': 'امروز تموم می‌شه', 'sx.pack1': 'پک اول', 'sx.pack2': 'پک دوم', 'sx.duoQ': 'این دو پک رو می‌خری؟', 'sx.endsIn': 'پایان تا', 'sx.d': 'روز', 'sx.youSave': '{n} سکه کمتر', 'sx.all': 'هر دو', 'sx.piecesAll': 'تکه‌ها، روی هر دو کارت', 'sx.offerGone': 'این آفر تموم شده یا یکی از پک‌ها رو از قبل داری.',
+  'sx.offerChip': '{n}٪ تخفیف', 'sx.offerH': 'دو پک، یک قیمت', 'sx.offerP': 'هر دو پک تمی که خواستی رو با هم بخر و {n}٪ کمتر بده.', 'sx.daysLeft': '{n} روز مونده', 'sx.lastDay': 'امروز تموم می‌شه', 'sx.pack1': 'پک اول', 'sx.pack2': 'پک دوم', 'sx.duoQ': 'این دو پک رو می‌خری؟', 'sx.endsIn': 'پایان تا', 'sx.allThemes': 'همهٔ تم‌ها', 'sx.allP': 'روی کارت یا لینک‌کارت بزن تا تکه‌هاش رو یکی‌یکی ببینی.', 'sx.back': '\u2192 همهٔ تم‌ها', 'sx.seePieces': 'دیدن تکه‌ها', 'sx.d': 'روز', 'sx.youSave': '{n} سکه کمتر', 'sx.all': 'هر دو', 'sx.piecesAll': 'تکه‌ها، روی هر دو کارت', 'sx.offerGone': 'این آفر تموم شده یا یکی از پک‌ها رو از قبل داری.',
   'pc.free': 'مسیر رایگان', 'pc.level': 'مرحلهٔ {n}', 'pc.gift': 'هدیه',
 });
 function cartBar() {
