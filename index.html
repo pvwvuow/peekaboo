@@ -1297,6 +1297,8 @@ html[lang='fa'] .rar-chip { font-family: var(--fa-body); letter-spacing: 0; text
 .slide.card-pirate .sl-h { font-family: 'Lalezar', var(--en); letter-spacing: .03em; }
 
 /* v15: loading cover, calm re-render, centered empty reader, link look */
+/* v33.4: long unbroken text can't widen the settings page */
+.pane, .formgrid > * { min-width: 0; overflow-wrap: anywhere; }
 #busy { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(247, 242, 255, .62); backdrop-filter: blur(3px); opacity: 0; transition: opacity .18s ease; }
 #busy.on { opacity: 1; }
 #busy .busy-box { display: grid; justify-items: center; gap: 14px; padding: 26px 34px; border-radius: 26px; background: #fff; box-shadow: 0 14px 40px rgba(60, 40, 110, .18); font-weight: 700; color: var(--ink); }
@@ -2492,6 +2494,7 @@ function setLang(l) {
   $$('[data-lang-toggle]').forEach((b) => { b.textContent = LANG === 'fa' ? (b.classList.contains('lang-side') ? 'English' : 'EN') : (b.classList.contains('lang-side') ? 'فارسی' : 'فا'); });
   document.title = LANG === 'fa' ? 'peekaboo · یه کم راز، یه کم سلام' : 'peekaboo · A little mystery. A little hello.';
   dcRender();
+  try { if ($('#modal') && $('#modal').classList.contains('on')) closeModal(); } catch {}
   if (document.body.classList.contains('in-app')) renderApp();
   syncLoginButtons();
 }
@@ -2746,6 +2749,16 @@ async function rumFlush(hidden) {
 setInterval(() => rumFlush(false), 120000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') rumFlush(true); });
 /* v33.3: browser report */
+/* v33.4: the bot says the login is no good (a token Discord no longer accepts, or from another app): log out and say so */
+let EXPIRING = false;
+let EXPIRED_AT = 0;
+function sessionExpired() {
+  if (EXPIRING) return;
+  EXPIRING = true;
+  EXPIRED_AT = Date.now();
+  logout();
+  setTimeout(() => { EXPIRING = false; toast(LANG === 'fa' ? 'نشست تمام شد، دوباره وارد شو' : 'Your session ended, please log in again'); }, 300);
+}
 async function webApiRaw(path, body, info) {
   const s = session();
   if (!CONFIG.apiBase || !s) return null;
@@ -2773,6 +2786,7 @@ async function webApiRaw(path, body, info) {
     } catch (err) { e = err; }
     clearTimeout(timer);
     last = e;
+    if (e.status === 401 && e.body && e.body.error === 'login') { sessionExpired(); throw e; }
     const safe = body ? (e.status === 502 && e.body && e.body.error === 'discord') : (!e.status || e.status >= 500);
     if (!safe) throw e;
   }
@@ -2892,8 +2906,8 @@ function applyMe(data) {
   S.pass.quest = data.pass.quest || null;
   if (!data.pass.quest) S.quests = null;
   if (data.profile) {
-    S.profile = data.profile;
-    S.draft = { ...data.profile, nick: data.profile.nick || '', avatar: data.profile.avatar || '', bio: data.profile.bio || '', age: data.profile.age ?? '', lang: data.profile.lang || 'auto' };
+    S.profile = { ...data.profile, nick: data.profile.nick == null ? data.profile.nick : String(data.profile.nick).slice(0, 32), bio: data.profile.bio == null ? data.profile.bio : String(data.profile.bio).slice(0, 150) };
+    S.draft = { ...data.profile, nick: String(data.profile.nick || '').slice(0, 32), avatar: data.profile.avatar || '', bio: String(data.profile.bio || '').slice(0, 150), age: data.profile.age ?? '', lang: data.profile.lang || 'auto' };
   }
   if (data.options) S.options = data.options;
   if (data.code) S.link.code = data.code;
@@ -2927,7 +2941,7 @@ async function enterAppNow(opts = {}) {
       S.rawGuilds = guilds.filter(canManage).map((g) => ({ id: g.id, name: g.name, owner: !!g.owner, icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96` : '' }));
       S.guilds = S.rawGuilds;
       // coins, owned pieces and the look come from the bot (the same ones Discord uses); letters and chat stay a preview for now
-      const data = await webApi('/web/me').catch((e) => { if (e.status === 404) S.noProfile = true; else setTimeout(() => toast(t('sh.err')), 800); return null; });
+      const data = await webApi('/web/me').catch((e) => { if (e.status === 404) S.noProfile = true; else setTimeout(() => { if (Date.now() - EXPIRED_AT > 3000) toast(t('sh.err')); }, 800); return null; });
       if (data) {
         applyMe(data);
         S.botGuilds = new Set(data.guildIds || []);
@@ -2946,6 +2960,7 @@ async function enterAppNow(opts = {}) {
       else setTimeout(() => toast(t('sh.err')), 800);
     }
   }
+  if (Date.now() - EXPIRED_AT < 3000) return;
   document.body.classList.add('in-app');
   scrollTo(0, 0);
   renderApp();
@@ -3474,21 +3489,32 @@ function localResetTime() {
   try { return new Date(nextGiftAt()).toLocaleTimeString(LANG === 'fa' ? 'fa-IR-u-nu-latn' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) + ` (${Intl.DateTimeFormat().resolvedOptions().timeZone})`; } catch { return '12:30 Iran'; }
 }
 let CD_TIMER = null;
+let CD_DONE = 0;
 function runCountdown() {
   clearInterval(CD_TIMER);
   const tick = () => {
-    const left = nextGiftAt() - Date.now();
+    const target = S.pass.nextAt || nextGiftAt();
+    const left = target - Date.now();
     const els = $$('[data-cd]');
     if (!els.length) { clearInterval(CD_TIMER); return; }
     const sec = Math.max(0, Math.floor(left / 1000));
     const txt = [Math.floor(sec / 3600), Math.floor((sec % 3600) / 60), sec % 60].map((x) => String(x).padStart(2, '0')).join(':');
     els.forEach((e) => { e.textContent = txt; });
     // the new day has begun: the gift is ready again
-    if (left <= 0 && (S.pass.today || (S.pass.free && S.pass.free.today))) {
-      S.pass.today = false;
-      if (S.pass.free) S.pass.free.today = false;
-      S.pass.nextAt = 0;
-      renderApp();
+    if (left <= 0) {
+      if (S.live) {
+        // v33.4: ask the bot what the new day looks like (the gift, the next quest) - once per reset moment
+        if (CD_DONE !== target) {
+          CD_DONE = target;
+          S.pass.nextAt = 0;
+          webApi('/web/me').then((d) => { if (d) applyMe(d); return loadQuests(); }).catch(() => {}).finally(() => renderApp());
+        }
+      } else if (S.pass.today || (S.pass.free && S.pass.free.today)) {
+        S.pass.today = false;
+        if (S.pass.free) S.pass.free.today = false;
+        S.pass.nextAt = 0;
+        renderApp();
+      }
     }
   };
   tick();
@@ -3827,13 +3853,15 @@ function drawer(open) {
 }
 
 /* ---------- modal + toast ---------- */
+let MODAL_OPENER = null;
 function modal(html, cls = '') {
+  MODAL_OPENER = document.activeElement;
   $('#modal-box').className = `box2${cls ? ` ${cls}` : ''}`;
   $('#modal-box').innerHTML = html;
   $('#modal').classList.add('on');
   setTimeout(() => $('#modal-box textarea, #modal-box input, #modal-box button')?.focus(), 50);
 }
-const closeModal = () => $('#modal').classList.remove('on');
+const closeModal = () => { $('#modal').classList.remove('on'); try { if (MODAL_OPENER && MODAL_OPENER.isConnected && MODAL_OPENER.focus) MODAL_OPENER.focus(); } catch {} };
 let toastT = 0;
 function toast(msg, im = 'idle') {
   const el = $('#toast');
@@ -3880,6 +3908,7 @@ async function claimQuest() {
     const b = e.body || {};
     if (b.error === 'quest') { await loadQuests(); toast(t(b.next?.error === 'verify' ? 'q.verify' : 'q.notYet')); }
     else if (b.error === 'caught') { await loadQuests(); toast(t('q.caught')); }
+    else if (e.status === 409) { try { applyMe(await webApi('/web/me')); await loadQuests(); } catch {} renderApp(); toast(t('pass.already')); }
     else toast(t('sh.err'));
   } finally { checkin.busy = false; }
 }
@@ -4045,6 +4074,7 @@ function act(name, el) {
     case 'lpay-ok': liveOrder(el); break;
     case 'pass-buy': {
       if (!S.live) { toast(t('app.savedDemo')); break; }
+      if (busyN > 0) break;
       busy(true, t('app.busy'));
       webApi('/web/pass/buy', {}).then((r) => { applyMe(r.me); renderApp(); toast(t('px.bought'), 'pass'); }).catch((e) => { if (e.status === 402) { toast(t('px.poor')); go('wallet'); } else toast(t('sh.err')); }).finally(() => busy(false));
       break;
@@ -5335,11 +5365,15 @@ async function shopBuyOk(what) {
   if (price > S.coins || !keys.length) return;
   if (S.live) {
     // the bot books it: the price and the pieces come back from the server
+    if (shopBuyOk.on) return;
+    shopBuyOk.on = true;
     try {
       const r = await webApi('/web/shop/buy', { what });
       S.coins = r.coins;
       S.shop.own = r.own;
+      shopBuyOk.on = false;
     } catch (e) {
+      shopBuyOk.on = false;
       closeModal();
       if (e.body && e.body.coins !== undefined) S.coins = e.body.coins;
       renderApp();
@@ -5625,7 +5659,7 @@ function boot() {
   try { saved = localStorage.getItem('pk_lang'); } catch {}
   setLang(q.get('lang') || saved || 'en');
   if (q.get('tab')) TAB = TABS.some(([k]) => k === q.get('tab')) ? q.get('tab') : 'home';
-  if (session() || q.get('demo') === '1') enterApp();
+  if (session() || q.get('demo') === '1') Promise.resolve(enterApp()).then(() => { if (S.live) { if (TAB === 'wallet') loadShop(); else if (TAB === 'pass') loadQuests(); else if (TAB === 'link' && typeof referralLoad === 'function') referralLoad(); } });
   else if (q.get('view') === 'panel' || q.get('login') === '1') login();
   if (q.get('open')) { S.open = Number(q.get('open')); S.inbox.forEach((l) => { if (l.id === S.open) l.read = true; }); renderApp(); }
   if (q.get('gtab')) { S.gtab = q.get('gtab'); renderApp(); }
