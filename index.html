@@ -2719,7 +2719,34 @@ async function discord(path, token) {
   }
   throw last;
 }
+/* v33.3: browser report - how every call to the bot went, as the person felt it (after retries). */
+const RUM = [];
+let rumSending = false;
+const rumRoute = (p) => String(p).replace(/^\/web\//, '').replace(/\?.*$/, '').replace(/\//g, '.').slice(0, 24);
 async function webApi(path, body) {
+  const t0 = performance.now();
+  const info = { tries: 1 };
+  let status = 200;
+  try { return await webApiRaw(path, body, info); }
+  catch (e) { status = e && e.status ? e.status : 0; throw e; }
+  finally { if (path !== '/web/rum' && RUM.length < 80 && CONFIG.apiBase && session()) RUM.push({ r: rumRoute(path), ms: Math.round(performance.now() - t0), s: status, t: info.tries }); }
+}
+async function rumFlush(hidden) {
+  if (rumSending || !RUM.length || !CONFIG.apiBase) return;
+  const s = session();
+  if (!s) return;
+  const items = RUM.splice(0, 40);
+  rumSending = true;
+  try {
+    const r = await fetch(`${CONFIG.apiBase.replace(/\/+$/, '')}/web/rum`, { method: 'POST', keepalive: Boolean(hidden), headers: { Authorization: `Bearer ${s.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+    if (!r.ok) throw new Error(String(r.status));
+  } catch { RUM.unshift(...items.slice(0, 40)); RUM.length = Math.min(RUM.length, 80); }
+  rumSending = false;
+}
+setInterval(() => rumFlush(false), 120000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') rumFlush(true); });
+/* v33.3: browser report */
+async function webApiRaw(path, body, info) {
   const s = session();
   if (!CONFIG.apiBase || !s) return null;
   const url = `${CONFIG.apiBase.replace(/\/+$/, '')}${path}`;
@@ -2727,6 +2754,7 @@ async function webApi(path, body) {
   const tries = body ? 2 : 4;
   let last;
   for (let n = 0; n < tries; n++) {
+    if (info) info.tries = n + 1;
     if (n) await new Promise((ok) => setTimeout(ok, [0, 700, 1600, 2800][n]));
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctl ? setTimeout(() => ctl.abort(), 25000) : 0;
