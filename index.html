@@ -5197,6 +5197,7 @@ function boot() {
   setLang(q.get('lang') || saved || 'en');
   if (q.get('tab')) TAB = TABS.some(([k]) => k === q.get('tab')) ? q.get('tab') : 'home';
   if (session() || q.get('view') === 'panel') enterApp();
+  else if (q.get('login') === '1') login();
   if (q.get('open')) { S.open = Number(q.get('open')); S.inbox.forEach((l) => { if (l.id === S.open) l.read = true; }); renderApp(); }
   if (q.get('gtab')) { S.gtab = q.get('gtab'); renderApp(); }
 }
