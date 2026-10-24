@@ -4207,7 +4207,7 @@ function markPaused() {
   });
 }
 const packLeft = (id) => PARTS.filter((p) => !owns(`${id}:${p}`));
-const packPrice = (id) => { const left = packLeft(id); return left.length === 4 ? packBase(id) : Math.min(packBase(id), left.reduce((s, p) => s + pp(id, p), 0)); };
+const packPrice = (id) => { const left = packLeft(id); if (!left.length) return 0; if (left.length === 4) return packBase(id); const all = PARTS.reduce((n, p) => n + pp(id, p), 0); const rest = left.reduce((n, p) => n + pp(id, p), 0); return Math.min(packBase(id), Math.round((packBase(id) * rest) / all)); };
 const bundleLeft = () => THEMES.filter((th) => packLeft(th.id).length);
 const bundlePrice = () => { const left = bundleLeft(); return left.length === THEMES.length && left.every((th) => packLeft(th.id).length === 4) ? BUNDLE_PRICE : Math.min(BUNDLE_PRICE, left.reduce((s, th) => s + packPrice(th.id), 0)); };
 const fullPrice = (keys) => keys.reduce((s, k) => s + pp(k.split(':')[0], k.split(':')[1]), 0);
@@ -4657,9 +4657,11 @@ renderTabs = function () {
   if (!c) { c = document.createElement('button'); c.id = 'pass-cta'; c.type = 'button'; c.className = 'pass-cta'; c.dataset.tab = 'pass'; tabs.insertAdjacentElement('beforebegin', c); }
   const p = S.pass || {};
   const sub = p.active ? t('pc.level', { n: p.level || 0 }) : t('pc.free');
-  const pct = p.active ? Math.max(4, Math.min(100, Math.round(((p.level || 0) / (p.max || 30)) * 100))) : 0;
+  const max = p.max || 30;
+  const pct = p.active ? Math.max(4, Math.min(100, Math.round(((p.level || 0) / max) * 100))) : 0;
   c.setAttribute('aria-current', TAB === 'pass' ? 'page' : 'false');
-  c.innerHTML = `<span class="pc-chick">${pic('walk')}</span><span class="pc-t"><b>peakopass</b><small>${esc(sub)}</small>${p.active ? `<i class="pc-bar" role="presentation"><u style="width:${pct}%"></u></i>` : ''}</span>${p.today ? '' : `<span class="pc-gift"><i></i>${esc(t('pc.gift'))}</span>`}`;
+  const stub = p.active ? `<b class="num">${p.level || 0}</b><small>/${max}</small>${p.today ? '' : `<em title="${esc(t('pc.gift'))}"></em>`}` : `<small>${esc(t('pc.gift'))}</small>${p.today ? '' : '<em></em>'}`;
+  c.innerHTML = `<span class="pc-chick">${pic('walk')}</span><span class="pc-t"><b>peakopass</b><small>${esc(sub)}</small>${p.active ? `<i class="pc-bar" role="presentation"><u style="width:${pct}%"></u></i>` : ''}</span><span class="pc-stub">${stub}</span>`;
 };
 document.head.insertAdjacentHTML('beforeend', `<style>
 .side #tabs .tab[data-tab="pass"]{display:none}
@@ -4853,9 +4855,10 @@ function cartBar() {
   </div>`;
 }
 
-/* v33: my collection = one big preview, a bar to pick what to change, and every piece I have for it (plus my favourites) */
-const CL3 = { cat: 'card', all: false, show: false, scene: 'home', tr: null, timer: 0 };
-const CL3_CATS = ['card', 'border', 'btn', 'font', 'fav'];
+/* v33: my collection = one big preview, a bar to pick the mode (whole collections / favourites / custom) and the pieces I have */
+const CL3 = { mode: 'sets', cat: 'card', all: false, scene: 'home', tr: null };
+const CL3_PARTS = ['card', 'border', 'btn', 'font'];
+const CL3_SCENES = ['home', 'link'];
 const clSkins = () => (S.pass && S.pass.skins) || [];
 const clTrying = () => {
   const tr = CL3.tr;
@@ -4875,11 +4878,12 @@ function clOptions(part) {
   THEMES.forEach((th) => list.push({ id: th.id, n: L(th.n), own: owns(`${th.id}:${part}`), th }));
   return list;
 }
-const clCount = (part) => clOptions(part).filter((o) => o.own && o.id !== 'def').length;
+const clCount = (part) => clOptions(part).filter((o) => o.own).length;
+const clHave = (id) => PARTS.filter((p) => owns(`${id}:${p}`));
+const clSetsList = () => THEMES.filter((th) => CL3.all || clHave(th.id).length);
+const clFavList = () => THEMES.filter((th) => SXF.includes(th.id));
 const clFrame = () => dframe(sxSceneCard(CL3.scene, clLook()));
 const clWearName = (p) => { const v = S.shop.on[p]; return v === 'def' ? t('sh.def') : themeOf(v) ? L(themeOf(v).n) : t(`k.${v}`); };
-const clPlay = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>';
-const clPause = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
 
 function clTryBar() {
   const tr = clTrying();
@@ -4893,12 +4897,11 @@ function clTryBar() {
 }
 
 function clStage() {
-  const scenes = SCENES.map((k) => `<button type="button" role="tab" aria-selected="${CL3.scene === k}" data-cl3-scene="${k}">${esc(t(`sc.${k}`))}</button>`).join('');
-  const chips = PARTS.map((p) => `<button type="button" class="cl3-chip${CL3.cat === p ? ' on' : ''}" data-cl3-cat="${p}"><span>${esc(t(`sh.${p}`))}</span><b>${esc(clWearName(p))}</b></button>`).join('');
+  const scenes = CL3_SCENES.map((k) => `<button type="button" role="tab" aria-selected="${CL3.scene === k}" data-cl3-scene="${k}">${esc(t(`sc.${k}`))}</button>`).join('');
+  const chips = PARTS.map((p) => `<button type="button" class="cl3-chip" data-cl3-cat="${p}"><span>${esc(t(`sh.${p}`))}</span><b>${esc(clWearName(p))}</b></button>`).join('');
   const dirty = PARTS.some((p) => S.shop.on[p] !== 'def');
   return `<section class="pane cl3-stage" id="cl3-stage" aria-label="${esc(t('cl3.stageH'))}">
-    <div class="cl3-sh"><div class="cl3-scenes" role="tablist">${scenes}</div>
-      <button type="button" class="btn btn-white btn-sm cl3-show${CL3.show ? ' on' : ''}" data-cl3-act="show" aria-pressed="${CL3.show}">${CL3.show ? clPause : clPlay}<span>${esc(t(CL3.show ? 'cl3.pause' : 'cl3.show'))}</span></button></div>
+    <div class="cl3-sh"><h3>${esc(t('cl3.stageH'))}</h3><div class="cl3-scenes" role="tablist">${scenes}</div></div>
     <div id="cl-frame" class="cl3-frame">${clFrame()}</div>
     ${clTryBar()}
     <div class="cl3-wear" aria-label="${esc(t('sh.look'))}">${chips}</div>
@@ -4913,52 +4916,63 @@ function clItem(part, o) {
   const look = { card: 'def', border: 'def', btn: 'def', font: 'def', [part]: o.id };
   const slim = part === 'btn' || part === 'font';
   const state = o.own
-    ? (on ? `<span class="stchip st-g">${ICON.check}<span>${esc(t('sh.applied'))}</span></span>` : `<span class="cl3-go">${esc(t('cl.wear'))}</span>`)
-    : `<span class="cl3-price">${coin(pp(o.id, part))}</span>`;
+    ? (on ? `<span class="cl3-state on">${ICON.check}<span>${esc(t('sh.applied'))}</span></span>` : `<span class="cl3-state">${esc(t('cl.wear'))}</span>`)
+    : `<span class="cl3-state buy">${coin(pp(o.id, part))}</span>`;
   const sub = o.skin ? '<small>peakopass</small>' : o.th && isLeg(o.id) ? `<small class="cl3-rar ${rar(o.id)}">\u2605 ${esc(t(`sx.rar.${rar(o.id)}`))}</small>` : '';
   return `<button type="button" class="cl3-item${on ? ' on' : ''}${o.own ? '' : ' lock'}${trying ? ' try' : ''}${slim ? ' slim' : ''}" data-cl3-pick="${part}:${o.id}" aria-pressed="${on}">
     <span class="cl3-th">${sxCard(slim ? 'share' : 'panel', look)}${o.own ? '' : `<span class="ot-lock">${ICON.lockW}</span>`}</span>
-    <span class="cl3-nm"><b>${esc(o.n)}</b>${sub}</span>${state}</button>`;
+    <span class="cl3-nm"><span><b>${esc(o.n)}</b>${sub}</span>${state}</span></button>`;
 }
 
-function clFavs() {
-  const list = THEMES.filter((th) => SXF.includes(th.id));
-  if (!list.length) return `<div class="cl3-empty"><b>${esc(t('cl3.favEmptyH'))}</b><p>${esc(t('cl3.favEmpty'))}</p><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button></div>`;
+/* one whole theme: preview, how many pieces I own, and one clear action */
+function clSetCard(th) {
+  const have = clHave(th.id);
+  const left = packLeft(th.id);
+  const look = Object.fromEntries(PARTS.map((p) => [p, th.id]));
   const tr = clTrying();
-  return `<div class="cl3-favs">${list.map((th) => {
-    const have = PARTS.filter((p) => owns(`${th.id}:${p}`));
-    const left = packLeft(th.id);
-    const look = Object.fromEntries(PARTS.map((p) => [p, th.id]));
-    const trying = tr && tr.part === 'all' && tr.id === th.id;
-    return `<article class="cl3-fav${trying ? ' try' : ''}">
-      <button type="button" class="cl3-fav-pv" data-cl3-fav="prev:${th.id}" aria-label="${esc(t('sh.try'))}: ${esc(L(th.n))}">${sxCard('panel', look)}</button>
-      <div class="cl3-fav-i">
-        <div class="cl3-fav-t"><b>${esc(L(th.n))}</b>${isLeg(th.id) ? `<span class="rar-chip ${rar(th.id)}">\u2605 ${esc(t(`sx.rar.${rar(th.id)}`))}</span>` : ''}</div>
-        <small>${esc(t('cl3.have', { n: have.length, m: PARTS.length }))}</small>
-        <div class="cl3-fav-a">
-          <button type="button" class="btn btn-white btn-sm" data-cl3-fav="prev:${th.id}">${IC.eye}<span>${esc(t('sh.try'))}</span></button>
-          ${have.length ? `<button type="button" class="btn btn-yolk btn-sm" data-cl3-fav="wear:${th.id}">${esc(left.length ? t('cl3.wearOwned', { n: have.length }) : t('sh.applyAll'))}</button>` : ''}
-          ${left.length ? `<button type="button" class="btn ${have.length ? 'btn-white' : 'btn-yolk'} btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : ''}
-          <button type="button" class="cl3-unfav" data-cl3-fav="un:${th.id}" aria-label="${esc(t('sx.savedOne'))}: ${esc(L(th.n))}">\u2665</button>
-        </div></div></article>`;
-  }).join('')}</div>`;
+  const trying = tr && tr.part === 'all' && tr.id === th.id;
+  const worn = PARTS.every((p) => S.shop.on[p] === th.id);
+  const fav = SXF.includes(th.id);
+  const pips = PARTS.map((p) => `<i class="${owns(`${th.id}:${p}`) ? 'on' : ''}" title="${esc(t(`sh.${p}`))}"></i>`).join('');
+  let main;
+  if (!left.length) main = worn ? `<span class="cl3-state on cl3-wide">${ICON.check}<span>${esc(t('sh.applied'))}</span></span>` : `<button type="button" class="btn btn-yolk" data-cl3-fav="wear:${th.id}">${esc(t('sh.applyAll'))}</button>`;
+  else if (have.length) main = `<button type="button" class="btn btn-yolk" data-cl3-fav="wear:${th.id}">${esc(t('cl3.wearOwned', { n: have.length }))}</button>`;
+  else main = `<button type="button" class="btn btn-yolk" data-sbuy="${th.id}:pack">${esc(t('cl3.getSet'))} ${coin(packPrice(th.id))}</button>`;
+  const more = left.length && have.length ? `<button type="button" class="btn btn-white cl3-wide" data-sbuy="${th.id}:pack">${esc(t('cl3.complete'))} ${coin(packPrice(th.id))}</button>` : '';
+  return `<article class="cl3-set${trying ? ' try' : ''}${worn ? ' worn' : ''}">
+    <button type="button" class="cl3-set-pv" data-cl3-fav="prev:${th.id}" aria-label="${esc(t('sh.try'))}: ${esc(L(th.n))}">${sxCard('panel', look)}</button>
+    <div class="cl3-set-i">
+      <div class="cl3-set-h"><div class="cl3-set-t"><b>${esc(L(th.n))}</b>${isLeg(th.id) ? `<span class="rar-chip ${rar(th.id)}">\u2605 ${esc(t(`sx.rar.${rar(th.id)}`))}</span>` : ''}</div>
+        <button type="button" class="cl3-heart${fav ? ' on' : ''}" data-cl3-fav="tog:${th.id}" aria-pressed="${fav}" aria-label="${esc(t(fav ? 'sx.savedOne' : 'sx.save'))}: ${esc(L(th.n))}">${fav ? '\u2665' : '\u2661'}</button></div>
+      <div class="cl3-pips" aria-label="${esc(t('cl3.have', { n: have.length, m: PARTS.length }))}"><span class="cl3-pipset">${pips}</span><small>${have.length}/${PARTS.length}</small></div>
+      <div class="cl3-set-a"><div class="cl3-set-row">${main}<button type="button" class="cl3-eye" data-cl3-fav="prev:${th.id}" aria-label="${esc(t('sh.try'))}: ${esc(L(th.n))}" title="${esc(t('sh.try'))}">${IC.eye}</button></div>${more}</div>
+    </div></article>`;
 }
+
+function clEmpty(h, p) { return `<div class="cl3-empty"><b>${esc(h)}</b><p>${esc(p)}</p><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button></div>`; }
 
 function clAssets() {
-  if (CL3.cat === 'fav') return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t('cl3.favH'))}</h3><small>${esc(t('cl3.favP'))}</small></div></div>${clFavs()}</aside>`;
+  if (CL3.mode === 'fav') {
+    const list = clFavList();
+    return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t('cl3.favH'))}</h3><small>${esc(t('cl3.favP'))}</small></div></div>${list.length ? `<div class="cl3-sets">${list.map(clSetCard).join('')}</div>` : clEmpty(t('cl3.favEmptyH'), t('cl3.favEmpty'))}</aside>`;
+  }
+  if (CL3.mode === 'sets') {
+    const list = clSetsList();
+    return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t('cl3.setsH'))}</h3><small>${esc(t('cl3.setsP'))}</small></div>
+      <label class="cl3-all"><input type="checkbox" data-cl3-all ${CL3.all ? 'checked' : ''}><span>${esc(t('cl3.allThemes'))}</span></label></div>${list.length ? `<div class="cl3-sets">${list.map(clSetCard).join('')}</div>` : clEmpty(t('cl3.setsEmptyH'), t('cl3.setsEmpty'))}</aside>`;
+  }
   const part = CL3.cat;
-  const all = clOptions(part);
-  const shown = all.filter((o) => CL3.all || o.own);
-  return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t(`sh.${part}`))}</h3><small>${esc(t(`cl.${part}P`))} \u00b7 ${esc(t('cl.have', { n: clCount(part) }))}</small></div>
+  const shown = clOptions(part).filter((o) => CL3.all || o.own);
+  const sub = CL3_PARTS.map((c) => `<button type="button" role="tab" aria-selected="${part === c}" data-cl3-cat="${c}"><span>${esc(t(`sh.${c}`))}</span><i>${clCount(c)}</i></button>`).join('');
+  return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-subtabs" role="tablist" aria-label="${esc(t('cl3.bar'))}">${sub}</div>
+    <div class="cl3-ah"><div><h3>${esc(t(`sh.${part}`))}</h3><small>${esc(t(`cl.${part}P`))}</small></div>
     <label class="cl3-all"><input type="checkbox" data-cl3-all ${CL3.all ? 'checked' : ''}><span>${esc(t('cl3.lockedToo'))}</span></label></div>
     <div class="cl3-list">${shown.map((o) => clItem(part, o)).join('')}</div></aside>`;
 }
 
 VIEWS.closet = function () {
-  const tabs = CL3_CATS.map((c) => {
-    const n = c === 'fav' ? THEMES.filter((th) => SXF.includes(th.id)).length : clCount(c);
-    return `<button type="button" role="tab" class="cl3-tab" aria-selected="${CL3.cat === c}" data-cl3-cat="${c}">${c === 'fav' ? '<span aria-hidden="true">\u2665</span>' : ''}<span>${esc(c === 'fav' ? t('cl3.favTab') : t(`sh.${c}`))}</span><i>${n}</i></button>`;
-  }).join('');
+  const modes = [['sets', t('cl3.modeSets'), clSetsList().length && !CL3.all ? clSetsList().length : THEMES.filter((th) => clHave(th.id).length).length], ['fav', t('cl3.modeFav'), clFavList().length], ['custom', t('cl3.modeCustom'), null]];
+  const tabs = modes.map(([m, label, n]) => `<button type="button" role="tab" class="cl3-tab" aria-selected="${CL3.mode === m}" data-cl3-mode="${m}">${m === 'fav' ? '<span aria-hidden="true">\u2665</span>' : ''}<span>${esc(label)}</span>${n === null ? '' : `<i>${n}</i>`}</button>`).join('');
   return `${vhead(t('cl.h'), t('cl.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button>`)}
     <div id="cl3"><div class="cl3-tabs" role="tablist" aria-label="${esc(t('cl3.bar'))}">${tabs}</div>
     <div class="cl3">${clStage()}${clAssets()}</div></div>`;
@@ -4971,28 +4985,14 @@ function clSetScene(k) {
   if (f) f.innerHTML = clFrame();
   $$('[data-cl3-scene]').forEach((b) => b.setAttribute('aria-selected', b.dataset.cl3Scene === k));
 }
-function clStep() {
-  if (!CL3.show || !$('#cl-frame')) { clearInterval(CL3.timer); CL3.timer = 0; if (!$('#cl-frame')) CL3.show = false; return; }
-  clSetScene(SCENES[(SCENES.indexOf(CL3.scene) + 1) % SCENES.length]);
-}
-function clShow(on) {
-  CL3.show = on;
-  clearInterval(CL3.timer);
-  CL3.timer = on ? setInterval(clStep, 3200) : 0;
-  clRender();
-}
 document.addEventListener('click', (e) => {
   if (!$('#cl3')) return;
   const q = (s) => e.target.closest(s);
   let el;
-  if ((el = q('[data-cl3-cat]'))) { CL3.cat = el.dataset.cl3Cat; CL3.tr = null; clRender(); return; }
-  if ((el = q('[data-cl3-scene]'))) { CL3.show = false; clearInterval(CL3.timer); CL3.timer = 0; clSetScene(el.dataset.cl3Scene); const b = $('.cl3-show'); if (b) { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); b.innerHTML = `${clPlay}<span>${esc(t('cl3.show'))}</span>`; } return; }
-  if ((el = q('[data-cl3-act]'))) {
-    const a = el.dataset.cl3Act;
-    if (a === 'show') clShow(!CL3.show);
-    else if (a === 'stop') { CL3.tr = null; clRender(); }
-    return;
-  }
+  if ((el = q('[data-cl3-mode]'))) { CL3.mode = el.dataset.cl3Mode; CL3.tr = null; CL3.all = false; clRender(); return; }
+  if ((el = q('[data-cl3-cat]'))) { CL3.mode = 'custom'; CL3.cat = el.dataset.cl3Cat; CL3.tr = null; clRender(); return; }
+  if ((el = q('[data-cl3-scene]'))) { clSetScene(el.dataset.cl3Scene); return; }
+  if ((el = q('[data-cl3-act]'))) { if (el.dataset.cl3Act === 'stop') { CL3.tr = null; clRender(); } return; }
   if ((el = q('[data-cl3-pick]'))) {
     const [part, id] = el.dataset.cl3Pick.split(':');
     const own = id === 'def' || (part === 'card' && clSkins().includes(id)) || owns(`${id}:${part}`);
@@ -5002,32 +5002,35 @@ document.addEventListener('click', (e) => {
   }
   if ((el = q('[data-cl3-fav]'))) {
     const [a, id] = el.dataset.cl3Fav.split(':');
-    if (a === 'prev') { CL3.tr = { part: 'all', id }; if (id === 'samurai' || id === 'pirate') CL3.scene = 'link'; track('view', id); clRender(); const st = $('#cl3-stage'); if (st && matchMedia('(max-width: 1000px)').matches) scrollTo({ top: st.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); }
+    if (a === 'prev') { CL3.tr = { part: 'all', id }; if (id === 'samurai' || id === 'pirate') CL3.scene = 'link'; track('view', id); clRender(); const st = $('#cl3-stage'); if (st && matchMedia('(max-width: 1100px)').matches) scrollTo({ top: st.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); }
     else if (a === 'wear') { CL3.tr = null; shopApply(PARTS.filter((p) => owns(`${id}:${p}`)).map((p) => `${id}:${p}`).join(',')); }
-    else if (a === 'un') { const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); sxSaveFav(); if (CL3.tr && CL3.tr.id === id) CL3.tr = null; clRender(); }
+    else if (a === 'tog') { const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); else SXF.push(id); sxSaveFav(); clRender(); }
   }
 }, false);
 document.addEventListener('change', (e) => { if (e.target.closest?.('[data-cl3-all]') && $('#cl3')) { CL3.all = e.target.checked; clRender(); } }, false);
-Object.assign(T.en, { "cl.p": "Everything you own. Pick what to change on top, then wear a piece from the list on the right.", "cl3.stageH": "Preview", "cl3.show": "Slideshow", "cl3.pause": "Pause", "cl3.pick": "Pick a piece on the right to see it here.", "cl3.favTab": "Favourites", "cl3.favH": "My favourites", "cl3.favP": "Themes you saved with \u2665 in the shop.", "cl3.favEmptyH": "Nothing saved yet", "cl3.favEmpty": "Tap the \u2665 on a theme in the shop and it shows up here.", "cl3.have": "{n} of {m} pieces are yours", "cl3.wearOwned": "Wear what I have ({n})", "cl3.lockedToo": "Show locked too", "cl3.bar": "What do you want to change", "cl3.from": "from" });
-Object.assign(T.fa, { "cl.p": "\u0647\u0631 \u0686\u06cc \u062f\u0627\u0631\u06cc \u0627\u06cc\u0646\u062c\u0627\u0633\u062a. \u0628\u0627\u0644\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646 \u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u06cc\u060c \u0628\u0639\u062f \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u06cc\u0647 \u062a\u06a9\u0647 \u0628\u067e\u0648\u0634.", "cl3.stageH": "\u067e\u06cc\u0634\u200c\u0646\u0645\u0627\u06cc\u0634", "cl3.show": "\u0627\u0633\u0644\u0627\u06cc\u062f \u0634\u0648", "cl3.pause": "\u062a\u0648\u0642\u0641", "cl3.pick": "\u06cc\u0647 \u062a\u06a9\u0647 \u0631\u0648 \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u0628\u0631\u062f\u0627\u0631 \u062a\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0628\u0628\u06cc\u0646\u06cc.", "cl3.favTab": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627", "cl3.favH": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.favP": "\u062a\u0645\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0628\u0627 \u2665 \u0630\u062e\u06cc\u0631\u0647 \u06a9\u0631\u062f\u06cc.", "cl3.favEmptyH": "\u0647\u0646\u0648\u0632 \u0686\u06cc\u0632\u06cc \u0630\u062e\u06cc\u0631\u0647 \u0646\u06a9\u0631\u062f\u06cc", "cl3.favEmpty": "\u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0631\u0648\u06cc \u2665 \u06cc\u0647 \u062a\u0645 \u0628\u0632\u0646\u060c \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.have": "{n} \u0627\u0632 {m} \u062a\u06a9\u0647 \u0645\u0627\u0644 \u062a\u0648\u0626\u0647", "cl3.wearOwned": "\u0645\u0627\u0644 \u062e\u0648\u062f\u0645 \u0631\u0648 \u0628\u067e\u0648\u0634 ({n})", "cl3.lockedToo": "\u0642\u0641\u0644\u200c\u0634\u062f\u0647\u200c\u0647\u0627 \u0647\u0645", "cl3.bar": "\u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u0645", "cl3.from": "\u0627\u0632" });
+Object.assign(T.en, { "cl.p": "Everything you own. Wear a whole collection at once, or switch to Custom and mix piece by piece.", "cl3.stageH": "Preview", "cl3.pick": "Pick something on the right to see it here.", "cl3.modeSets": "Collections", "cl3.modeFav": "Favourites", "cl3.modeCustom": "Custom", "cl3.setsH": "My collections", "cl3.setsP": "Whole themes: wear all four pieces in one tap.", "cl3.setsEmptyH": "No collection yet", "cl3.setsEmpty": "Buy any piece in the shop and its collection shows up here.", "cl3.allThemes": "Show all themes", "cl3.favH": "My favourites", "cl3.favP": "Themes you saved with \u2665 in the shop.", "cl3.favEmptyH": "Nothing saved yet", "cl3.favEmpty": "Tap the \u2665 on a theme in the shop (or here) and it shows up here.", "cl3.have": "{n} of {m} pieces are yours", "cl3.wearOwned": "Wear what I have ({n})", "cl3.getSet": "Get the collection", "cl3.complete": "Complete the collection", "cl3.lockedToo": "Show locked too", "cl3.bar": "What do you want to change", "cl3.from": "from" });
+Object.assign(T.fa, { "cl.p": "\u0647\u0631 \u0686\u06cc \u062f\u0627\u0631\u06cc \u0627\u06cc\u0646\u062c\u0627\u0633\u062a. \u06cc\u0647 \u06a9\u0627\u0644\u06a9\u0634\u0646 \u06a9\u0627\u0645\u0644 \u0631\u0648 \u06cc\u06a9\u200c\u062c\u0627 \u0628\u067e\u0648\u0634\u060c \u06cc\u0627 \u0628\u06cc\u0627 \u0631\u0648\u06cc \u00ab\u06a9\u0627\u0633\u062a\u0648\u0645\u00bb \u0648 \u062a\u06a9\u0647\u200c\u0628\u0647\u200c\u062a\u06a9\u0647 \u0642\u0627\u0637\u06cc \u06a9\u0646.", "cl3.stageH": "\u067e\u06cc\u0634\u200c\u0646\u0645\u0627\u06cc\u0634", "cl3.pick": "\u06cc\u0647 \u0686\u06cc\u0632\u06cc \u0631\u0648 \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u0628\u0631\u062f\u0627\u0631 \u062a\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0628\u0628\u06cc\u0646\u06cc.", "cl3.modeSets": "\u06a9\u0627\u0644\u06a9\u0634\u0646\u200c\u0647\u0627", "cl3.modeFav": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627", "cl3.modeCustom": "\u06a9\u0627\u0633\u062a\u0648\u0645", "cl3.setsH": "\u06a9\u0627\u0644\u06a9\u0634\u0646\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.setsP": "\u062a\u0645 \u06a9\u0627\u0645\u0644: \u0647\u0631 \u0686\u0647\u0627\u0631 \u062a\u06a9\u0647 \u0628\u0627 \u06cc\u06a9 \u0636\u0631\u0628\u0647.", "cl3.setsEmptyH": "\u0647\u0646\u0648\u0632 \u06a9\u0627\u0644\u06a9\u0634\u0646\u06cc \u0646\u062f\u0627\u0631\u06cc", "cl3.setsEmpty": "\u06cc\u0647 \u062a\u06a9\u0647 \u0627\u0632 \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0628\u062e\u0631\u060c \u06a9\u0627\u0644\u06a9\u0634\u0646\u0634 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.allThemes": "\u0647\u0645\u0647\u0654 \u062a\u0645\u200c\u0647\u0627", "cl3.favH": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.favP": "\u062a\u0645\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u0628\u0627 \u2665 \u0630\u062e\u06cc\u0631\u0647 \u06a9\u0631\u062f\u06cc.", "cl3.favEmptyH": "\u0647\u0646\u0648\u0632 \u0686\u06cc\u0632\u06cc \u0630\u062e\u06cc\u0631\u0647 \u0646\u06a9\u0631\u062f\u06cc", "cl3.favEmpty": "\u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 (\u06cc\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627) \u0631\u0648\u06cc \u2665 \u06cc\u0647 \u062a\u0645 \u0628\u0632\u0646\u060c \u0627\u06cc\u0646\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.have": "{n} \u0627\u0632 {m} \u062a\u06a9\u0647 \u0645\u0627\u0644 \u062a\u0648\u0626\u0647", "cl3.wearOwned": "\u0645\u0627\u0644 \u062e\u0648\u062f\u0645 \u0631\u0648 \u0628\u067e\u0648\u0634 ({n})", "cl3.getSet": "\u06af\u0631\u0641\u062a\u0646 \u06a9\u0627\u0644\u06a9\u0634\u0646", "cl3.complete": "\u06a9\u0627\u0645\u0644 \u06a9\u0631\u062f\u0646 \u06a9\u0627\u0644\u06a9\u0634\u0646", "cl3.lockedToo": "\u0642\u0641\u0644\u200c\u0634\u062f\u0647\u200c\u0647\u0627 \u0647\u0645", "cl3.bar": "\u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u0645", "cl3.from": "\u0627\u0632" });
 document.head.insertAdjacentHTML('beforeend', `<style>
+/* my collection */
 .cl3-tabs{display:flex;gap:6px;overflow-x:auto;padding:6px;margin:0 0 14px;background:var(--white);border-radius:20px;box-shadow:var(--shadow);scrollbar-width:none}
-.cl3-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:14px;background:transparent;color:var(--ink-2);font:700 15px var(--en);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
-html[lang='fa'] .cl3-tab{font-family:var(--fa-body)}
+.cl3-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border:0;border-radius:14px;background:transparent;color:var(--ink-2);font:700 15px var(--en);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
+html[lang='fa'] .cl3-tab,html[lang='fa'] .cl3-subtabs button,html[lang='fa'] .cl3-scenes button{font-family:var(--fa-body)}
 .cl3-tab:hover{background:var(--paper)}
 .cl3-tab[aria-selected='true']{background:var(--ink);color:#fff}
-.cl3-tab i{font:800 11.5px var(--en);font-style:normal;min-width:22px;padding:2px 7px;border-radius:99px;background:var(--paper);color:var(--ink-2);text-align:center}
+.cl3-tab i,.cl3-subtabs i{font:800 11.5px var(--en);font-style:normal;min-width:22px;padding:2px 7px;border-radius:99px;background:var(--paper);color:var(--ink-2);text-align:center}
 .cl3-tab[aria-selected='true'] i{background:rgba(255,255,255,.22);color:#fff}
-.cl3-tab:focus-visible,.cl3-item:focus-visible,.cl3-chip:focus-visible,.cl3-scenes button:focus-visible,.cl3-fav-pv:focus-visible,.cl3-unfav:focus-visible{outline:3px solid var(--blurple);outline-offset:2px}
-.cl3{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(340px,.8fr);gap:16px;align-items:start}
+.cl3-tab:focus-visible,.cl3-item:focus-visible,.cl3-chip:focus-visible,.cl3-scenes button:focus-visible,.cl3-set-pv:focus-visible,.cl3-heart:focus-visible,.cl3-eye:focus-visible,.cl3-subtabs button:focus-visible{outline:3px solid var(--blurple);outline-offset:2px}
+.cl3{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(360px,.8fr);gap:16px;align-items:start}
 .cl3-stage{position:sticky;top:12px;display:grid;gap:12px;padding:16px}
-.cl3-sh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.cl3-scenes{display:flex;gap:4px;padding:4px;background:var(--paper);border-radius:14px;flex-wrap:wrap}
-.cl3-scenes button{border:0;background:transparent;border-radius:10px;padding:7px 12px;font:700 13.5px var(--en);color:var(--ink-2);cursor:pointer}
-html[lang='fa'] .cl3-scenes button{font-family:var(--fa-body)}
-.cl3-scenes button[aria-selected='true']{background:var(--ink);color:#fff}
-.cl3-show{display:inline-flex;align-items:center;gap:7px}
-.cl3-show.on{background:#eef0ff;box-shadow:inset 0 0 0 2px var(--blurple)}
+.cl3-sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cl3-sh h3{margin:0}
+.cl3-scenes,.cl3-subtabs{display:flex;gap:4px;padding:4px;background:var(--paper);border-radius:14px}
+.cl3-scenes button,.cl3-subtabs button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:0;background:transparent;border-radius:10px;padding:8px 14px;font:700 13.5px var(--en);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.cl3-subtabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.cl3-subtabs button{padding:8px 6px}
+.cl3-subtabs i{background:#fff}
+.cl3-scenes button[aria-selected='true'],.cl3-subtabs button[aria-selected='true']{background:var(--ink);color:#fff}
+.cl3-subtabs button[aria-selected='true'] i{background:rgba(255,255,255,.22);color:#fff}
 .cl3-frame .dframe{padding:16px}
 .cl3-frame .dframe .bcard{border-radius:12px}
 .cl3-frame .sx-note{color:#949ba4;font-size:12.5px;margin:6px 2px 0}
@@ -5035,17 +5038,17 @@ html[lang='fa'] .cl3-scenes button{font-family:var(--fa-body)}
 .cl3-try-a{display:flex;gap:8px;flex-wrap:wrap}
 .cl3-wear{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .cl3-chip{display:grid;gap:2px;text-align:start;padding:9px 12px;border:1.5px solid transparent;border-radius:14px;background:var(--paper);cursor:pointer;font:inherit;color:var(--ink);min-width:0}
+.cl3-chip:hover{border-color:var(--blurple)}
 .cl3-chip span{font-size:12px;color:var(--ink-3)}
 .cl3-chip b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cl3-chip.on{border-color:var(--blurple);background:#eef0ff}
 .cl3-sf{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .cl3-sf small{color:var(--ink-3)}
-.cl3-assets{padding:16px;display:grid;gap:12px;align-content:start}
+.cl3-assets{padding:16px;display:grid;gap:14px;align-content:start}
 .cl3-ah{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .cl3-ah h3{margin:0}
-.cl3-ah small{color:var(--ink-3);font-size:13px}
+.cl3-ah small{display:block;margin-top:2px;color:var(--ink-3);font-size:13px}
 .cl3-all{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-2);cursor:pointer}
-.cl3-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;max-height:calc(100vh - 210px);overflow:auto;padding:3px;scrollbar-width:thin}
+.cl3-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;max-height:calc(100vh - 290px);overflow:auto;padding:3px}
 .cl3-item{display:grid;gap:8px;align-content:start;text-align:start;padding:8px;border:2px solid transparent;border-radius:18px;background:var(--paper);cursor:pointer;font:inherit;color:var(--ink);transition:transform .15s,box-shadow .2s}
 .cl3-item:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(36,27,72,.12)}
 .cl3-item.on{border-color:var(--mint-2)}
@@ -5053,32 +5056,55 @@ html[lang='fa'] .cl3-scenes button{font-family:var(--fa-body)}
 .cl3-item.lock .cl3-th{filter:saturate(.55);opacity:.85}
 .cl3-th{position:relative;display:block;border-radius:12px;overflow:hidden;line-height:0}
 .cl3-th .bcard{border-radius:10px}
-.cl3-th .sx-note,.cl3-fav-pv .sx-note{display:none}
-.cl3-nm{display:grid;gap:1px;padding:0 4px}
-.cl3-nm b{font-size:14.5px}
+.cl3-th .sx-note,.cl3-set-pv .sx-note{display:none}
+.cl3-nm{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px 2px;min-height:34px}
+.cl3-nm>span:first-child{display:grid;gap:1px;min-width:0}
+.cl3-nm b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cl3-nm small{font-size:12px;color:var(--ink-3)}
 .cl3-nm .cl3-rar.legendary{color:#b07a12}
 .cl3-nm .cl3-rar.epic{color:#7c4fd6}
 .cl3-nm .cl3-rar.rare{color:#2f7fd1}
-.cl3-go{justify-self:start;margin:0 4px 4px;padding:6px 14px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--ink);font:700 13px var(--en)}
-html[lang='fa'] .cl3-go{font-family:var(--fa-body)}
-.cl3-price,.cl3-item>.stchip{justify-self:start;margin:0 4px 4px}
-.cl3-favs{display:grid;gap:12px;max-height:calc(100vh - 210px);overflow:auto;padding:3px;scrollbar-width:thin}
-.cl3-fav{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;padding:10px;border-radius:18px;background:var(--paper);border:2px solid transparent}
-.cl3-fav.try{border-color:var(--blurple)}
-.cl3-fav-pv{border:0;padding:0;background:none;cursor:pointer;border-radius:12px;overflow:hidden;line-height:0;align-self:start}
-.cl3-fav-i{display:grid;gap:6px;align-content:start;min-width:0}
-.cl3-fav-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cl3-fav-t b{font-size:16.5px}
-.cl3-fav-i>small{color:var(--ink-3)}
-.cl3-fav-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.cl3-unfav{margin-inline-start:auto;width:36px;height:36px;border:0;border-radius:11px;background:transparent;font-size:20px;color:#d6336c;cursor:pointer}
-.cl3-unfav:hover{background:#fff}
+.cl3-state{display:inline-flex;align-items:center;gap:5px;flex:none;padding:5px 12px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--ink);font:700 12.5px var(--en);color:var(--ink)}
+html[lang='fa'] .cl3-state{font-family:var(--fa-body)}
+.cl3-state.on{background:#dff5ea;box-shadow:none;color:#1f6b46}
+.cl3-state.on svg{width:14px;height:14px}
+.cl3-state.buy{box-shadow:none;background:transparent;padding:0}
+.cl3-state.cl3-wide{justify-content:center;min-height:40px;border-radius:14px}
+.cl3-sets{display:grid;gap:12px;max-height:calc(100vh - 230px);overflow:auto;padding:3px}
+.cl3-set{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:12px;border-radius:20px;background:var(--paper);border:2px solid transparent}
+.cl3-set.try{border-color:var(--blurple)}
+.cl3-set.worn{border-color:var(--mint-2)}
+.cl3-set-pv{display:block;border:0;padding:0;background:none;cursor:pointer;border-radius:12px;overflow:hidden;line-height:0;width:100%}
+.cl3-set-i{display:grid;gap:10px;align-content:start;min-width:0}
+.cl3-set-h{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.cl3-set-t{display:grid;gap:5px;justify-items:start;min-width:0}
+.cl3-set-t b{font-size:17px;line-height:1.2}
+.cl3-heart{flex:none;width:36px;height:36px;border:0;border-radius:11px;background:#fff;font-size:19px;line-height:1;color:var(--ink-3);cursor:pointer}
+.cl3-heart.on{color:#d6336c}
+.cl3-heart:hover{box-shadow:inset 0 0 0 1.5px currentColor}
+.cl3-pips{display:flex;align-items:center;gap:10px}
+.cl3-pipset{display:flex;gap:4px}
+.cl3-pipset i{width:26px;height:6px;border-radius:99px;background:rgba(36,27,72,.14)}
+.cl3-pipset i.on{background:linear-gradient(90deg,#f6c23a,#ee8526)}
+.cl3-pips small{color:var(--ink-3);font:700 12.5px var(--en)}
+.cl3-set-a{display:grid;gap:8px}
+.cl3-set-row{display:grid;grid-template-columns:minmax(0,1fr) 40px;gap:8px}
+.cl3-set-a .btn{min-height:40px;width:100%;justify-content:center;white-space:nowrap}
+.cl3-eye{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;box-shadow:inset 0 0 0 1.5px rgba(36,27,72,.18)}
+.cl3-eye:hover{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.cl3-eye svg{width:20px;height:20px}
 .cl3-empty{text-align:center;padding:30px 12px;display:grid;gap:8px;justify-items:center;color:var(--ink-2)}
 .cl3-empty p{margin:0}
-@media (max-width:1100px){.cl3{grid-template-columns:1fr}.cl3-stage{position:static}.cl3-list,.cl3-favs{max-height:none}}
-@media (max-width:640px){.cl3-wear{grid-template-columns:repeat(2,minmax(0,1fr))}.cl3-fav{grid-template-columns:1fr}.cl3-fav-pv{max-width:260px}.cl3-tab{padding:0 14px}}
+.cl3-list,.cl3-sets,.sx-browse,.cl3-tabs{scrollbar-width:thin;scrollbar-color:#cdbff2 transparent}
+.cl3-list::-webkit-scrollbar,.cl3-sets::-webkit-scrollbar,.sx-browse::-webkit-scrollbar{width:10px;height:10px}
+.cl3-list::-webkit-scrollbar-track,.cl3-sets::-webkit-scrollbar-track,.sx-browse::-webkit-scrollbar-track{background:transparent;margin:12px 0}
+.cl3-list::-webkit-scrollbar-thumb,.cl3-sets::-webkit-scrollbar-thumb,.sx-browse::-webkit-scrollbar-thumb{background:linear-gradient(#d6caf5,#bba9ee);border:3px solid transparent;border-radius:99px;background-clip:content-box}
+.cl3-list::-webkit-scrollbar-thumb:hover,.cl3-sets::-webkit-scrollbar-thumb:hover,.sx-browse::-webkit-scrollbar-thumb:hover{background:linear-gradient(#b9a7ee,#9a82e0);border:3px solid transparent;background-clip:content-box}
+@media (max-width:1100px){.cl3{grid-template-columns:1fr}.cl3-stage{position:static}.cl3-list,.cl3-sets{max-height:none}}
+@media (max-width:640px){.cl3-wear{grid-template-columns:repeat(2,minmax(0,1fr))}.cl3-tab{padding:0 14px}.cl3-subtabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.cl3-item{transition:none}.cl3-item:hover{transform:none}}
+/* theme shop list: a calmer scroll area */
+.sx-col.sx-browse{scrollbar-gutter:stable;overscroll-behavior:contain;padding-inline-end:8px;background:linear-gradient(var(--white) 30%,rgba(255,255,255,0)) top/100% 34px no-repeat local,linear-gradient(rgba(255,255,255,0),var(--white) 70%) bottom/100% 34px no-repeat local,radial-gradient(farthest-side at 50% 0,rgba(70,49,127,.16),rgba(70,49,127,0)) top/100% 12px no-repeat scroll,radial-gradient(farthest-side at 50% 100%,rgba(70,49,127,.16),rgba(70,49,127,0)) bottom/100% 12px no-repeat scroll,var(--white)}
 /* new in the shop */
 .slide.sl3{min-height:270px;padding:24px 34px 58px;gap:30px;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center}
 .sl3-txt{display:grid;gap:9px;justify-items:start}
@@ -5093,26 +5119,38 @@ html[lang='fa'] .sl3-parts li{font-family:var(--fa-body);font-size:12.5px}
 .sl3-price i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.45}
 .sl3-cta{margin-top:4px}
 .sl3-art{position:relative;display:grid;place-items:center;min-width:0;align-self:stretch}
-.sl3-card{width:min(100%,370px);transform:rotate(-2.5deg);filter:drop-shadow(0 16px 22px rgba(36,27,72,.3))}
-html[dir='rtl'] .sl3-card{transform:rotate(2.5deg)}
-.sl3-card .bcard{border-radius:14px;box-shadow:0 0 0 5px rgba(255,255,255,.88)}
+.sl3-card{width:min(100%,370px);filter:drop-shadow(0 14px 22px rgba(36,27,72,.26))}
+.sl3-card .bcard{border-radius:14px;box-shadow:0 0 0 5px rgba(255,255,255,.9)}
 .sl3-card .sx-note{display:none}
 .sl3-orb{position:absolute;inset-inline-end:0;top:-6px;width:70px;filter:drop-shadow(0 8px 10px rgba(36,27,72,.28));pointer-events:none}
 .sl3-img{position:relative;width:clamp(150px,20vw,240px);filter:drop-shadow(0 12px 18px rgba(36,27,72,.25));pointer-events:none}
 .sl3-glow{position:absolute;width:min(78%,300px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.85),rgba(255,255,255,0) 68%)}
 @media (max-width:760px){.slide.sl3{grid-template-columns:1fr;padding:20px 20px 60px;min-height:0}.sl3-art{display:none}}
-/* peakopass ticket in the side menu */
-.side .pass-cta{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;flex:none;min-height:70px;margin:12px 0 6px;padding:12px;border:1px solid rgba(246,194,58,.4);border-radius:18px;background:radial-gradient(120% 150% at 0% 0%,rgba(246,194,58,.22),transparent 58%),linear-gradient(160deg,#37297a,#211846);-webkit-mask:none;mask:none;animation:none;box-shadow:0 8px 20px rgba(10,6,30,.35),inset 0 1px 0 rgba(255,255,255,.12)}
-.side .pass-cta .pc-chick{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#ffe596,#f4a636);box-shadow:inset 0 -3px 0 rgba(120,60,0,.18)}
-.side .pass-cta .pc-chick img{width:38px;height:38px}
-.side .pass-cta .pc-t{display:grid;gap:2px;min-width:0}
+/* the same calm white panel on every theme */
+.slide.sl3 .sl-txt{--tk-ink:var(--ink);--tk-soft:var(--ink-2);--tk-chip:var(--paper);--tk-chip-ink:var(--ink);background:rgba(255,255,255,.93);border:1px solid rgba(255,255,255,.95);box-shadow:0 10px 28px rgba(36,27,72,.14);padding:20px 24px 22px;border-radius:22px;color:var(--ink);backdrop-filter:blur(6px);max-width:520px}
+.slide.sl3 .sl-txt .sl-h,.slide.sl3 .sl-txt p{color:var(--ink)}
+.slide.sl3 .sl-txt p{color:var(--ink-2)}
+.slide.sl3 .sl-txt .sl-chip{background:var(--paper)}
+.slide.sl3 .sl3-parts li{background:var(--paper);box-shadow:none}
+/* peakopass ticket in the side menu: the same purple ticket as on the peakopass page, small */
+.side .pass-cta{display:grid;grid-template-columns:42px minmax(0,1fr) 62px;align-items:center;gap:0;flex:none;min-height:72px;margin:12px 0 6px;padding:12px 0 12px 12px;border:0;border-radius:18px;color:#fff;
+ background:radial-gradient(120% 140% at 0% 0%,#5a3fa0 0%,#46317f 38%,#2a1d52 100%);animation:none;box-shadow:none;
+ -webkit-mask-image:radial-gradient(circle 8px at calc(100% - 62px) 0,transparent 97%,#000),radial-gradient(circle 8px at calc(100% - 62px) 100%,transparent 97%,#000);-webkit-mask-composite:source-in;mask-image:radial-gradient(circle 8px at calc(100% - 62px) 0,transparent 97%,#000),radial-gradient(circle 8px at calc(100% - 62px) 100%,transparent 97%,#000);mask-composite:intersect;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-position:0 0;mask-position:0 0;width:100%}
+html[dir='rtl'] .side .pass-cta{padding:12px 12px 12px 0;-webkit-mask-image:radial-gradient(circle 8px at 62px 0,transparent 97%,#000),radial-gradient(circle 8px at 62px 100%,transparent 97%,#000);mask-image:radial-gradient(circle 8px at 62px 0,transparent 97%,#000),radial-gradient(circle 8px at 62px 100%,transparent 97%,#000)}
+.side .pass-cta:hover{filter:brightness(1.08)}
+.side .pass-cta .pc-chick{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12)}
+.side .pass-cta .pc-chick img{width:36px;height:36px}
+.side .pass-cta .pc-t{display:grid;gap:2px;min-width:0;padding-inline:11px 8px}
 .side .pass-cta .pc-t b{font:800 15px var(--en);letter-spacing:.01em;color:#fff}
-.side .pass-cta .pc-t b::before{content:'✦';color:#f6c23a;margin-inline-end:6px;font-size:12px}
-.side .pass-cta .pc-t small{color:#d9d0f4;font-size:12.5px}
-.side .pass-cta .pc-bar{display:block;height:6px;margin-top:5px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden}
-.side .pass-cta .pc-bar u{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#f6c23a,#ff9a4d);text-decoration:none}
-.side .pass-cta .pc-gift{align-self:start}
-.side .pass-cta[aria-current='page']{border-color:#f6c23a;box-shadow:0 0 0 2px rgba(246,194,58,.55),0 8px 20px rgba(10,6,30,.35)}
+.side .pass-cta .pc-t small{color:#e0d6fa;font-size:12.5px}
+.side .pass-cta .pc-bar{display:block;height:5px;margin-top:5px;border-radius:99px;background:rgba(255,255,255,.2);overflow:hidden}
+.side .pass-cta .pc-bar u{display:block;height:100%;border-radius:inherit;background:#f6cf63;text-decoration:none}
+.side .pass-cta .pc-stub{align-self:stretch;display:grid;place-items:center;align-content:center;gap:1px;border-inline-start:1.5px dashed rgba(255,255,255,.32);position:relative}
+.side .pass-cta .pc-stub b{font:800 22px var(--en);line-height:1;color:#f6cf63}
+.side .pass-cta .pc-stub small{font-size:11px;color:#e0d6fa;direction:ltr}
+.side .pass-cta .pc-stub em{position:absolute;top:2px;inset-inline-end:10px;width:8px;height:8px;border-radius:50%;background:#f6cf63;box-shadow:0 0 0 3px rgba(246,207,99,.25);animation:pcdot 1.8s ease-in-out infinite}
+.side .pass-cta[aria-current='page']{box-shadow:none;filter:brightness(1.12)}
+@media (prefers-reduced-motion:reduce){.side .pass-cta .pc-stub em{animation:none}}
 /* referral */
 .rf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin:0 0 10px;border-radius:16px;background:var(--paper)}
 .rf-row>div{display:grid;gap:2px;min-width:0}
@@ -5456,8 +5494,8 @@ function boot() {
   try { saved = localStorage.getItem('pk_lang'); } catch {}
   setLang(q.get('lang') || saved || 'en');
   if (q.get('tab')) TAB = TABS.some(([k]) => k === q.get('tab')) ? q.get('tab') : 'home';
-  if (session() || q.get('view') === 'panel') enterApp();
-  else if (q.get('login') === '1') login();
+  if (session() || q.get('demo') === '1') enterApp();
+  else if (q.get('view') === 'panel' || q.get('login') === '1') login();
   if (q.get('open')) { S.open = Number(q.get('open')); S.inbox.forEach((l) => { if (l.id === S.open) l.read = true; }); renderApp(); }
   if (q.get('gtab')) { S.gtab = q.get('gtab'); renderApp(); }
 }
