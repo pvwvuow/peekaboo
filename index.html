@@ -4657,8 +4657,9 @@ renderTabs = function () {
   if (!c) { c = document.createElement('button'); c.id = 'pass-cta'; c.type = 'button'; c.className = 'pass-cta'; c.dataset.tab = 'pass'; tabs.insertAdjacentElement('beforebegin', c); }
   const p = S.pass || {};
   const sub = p.active ? t('pc.level', { n: p.level || 0 }) : t('pc.free');
+  const pct = p.active ? Math.max(4, Math.min(100, Math.round(((p.level || 0) / (p.max || 30)) * 100))) : 0;
   c.setAttribute('aria-current', TAB === 'pass' ? 'page' : 'false');
-  c.innerHTML = `<span class="pc-chick">${pic('walk')}</span><span class="pc-t"><b>peakopass</b><small>${esc(sub)}</small></span>${p.today ? '' : `<span class="pc-gift"><i></i>${esc(t('pc.gift'))}</span>`}<span class="pc-sheen" aria-hidden="true"></span>`;
+  c.innerHTML = `<span class="pc-chick">${pic('walk')}</span><span class="pc-t"><b>peakopass</b><small>${esc(sub)}</small>${p.active ? `<i class="pc-bar" role="presentation"><u style="width:${pct}%"></u></i>` : ''}</span>${p.today ? '' : `<span class="pc-gift"><i></i>${esc(t('pc.gift'))}</span>`}`;
 };
 document.head.insertAdjacentHTML('beforeend', `<style>
 .side #tabs .tab[data-tab="pass"]{display:none}
@@ -4852,35 +4853,275 @@ function cartBar() {
   </div>`;
 }
 
-/* my collection: everything I own, mixed part by part */
+/* v33: my collection = one big preview, a bar to pick what to change, and every piece I have for it (plus my favourites) */
+const CL3 = { cat: 'card', all: false, show: false, scene: 'home', tr: null, timer: 0 };
+const CL3_CATS = ['card', 'border', 'btn', 'font', 'fav'];
+const clSkins = () => (S.pass && S.pass.skins) || [];
+const clTrying = () => {
+  const tr = CL3.tr;
+  if (!tr) return null;
+  const worn = tr.part === 'all' ? PARTS.every((p) => S.shop.on[p] === tr.id) : S.shop.on[tr.part] === tr.id;
+  return worn ? null : tr;
+};
+const clLook = () => {
+  const on = { ...S.shop.on };
+  const tr = clTrying();
+  if (tr) { if (tr.part === 'all') PARTS.forEach((p) => { on[p] = tr.id; }); else on[tr.part] = tr.id; }
+  return on;
+};
+function clOptions(part) {
+  const list = [{ id: 'def', n: t('sh.def'), own: true }];
+  if (part === 'card') clSkins().forEach((k) => list.push({ id: k, n: t(`k.${k}`), own: true, skin: true }));
+  THEMES.forEach((th) => list.push({ id: th.id, n: L(th.n), own: owns(`${th.id}:${part}`), th }));
+  return list;
+}
+const clCount = (part) => clOptions(part).filter((o) => o.own && o.id !== 'def').length;
+const clFrame = () => dframe(sxSceneCard(CL3.scene, clLook()));
+const clWearName = (p) => { const v = S.shop.on[p]; return v === 'def' ? t('sh.def') : themeOf(v) ? L(themeOf(v).n) : t(`k.${v}`); };
+const clPlay = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>';
+const clPause = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
+
+function clTryBar() {
+  const tr = clTrying();
+  if (!tr) return '';
+  const th = themeOf(tr.id);
+  const name = tr.part === 'all' ? `${L(th.n)} \u00b7 ${t('sh.fullTheme')}` : `${L(th.n)} \u00b7 ${t(`sh.${tr.part}`)}`;
+  let act;
+  if (tr.part === 'all') act = packLeft(tr.id).length ? `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(tr.id))}</button>` : `<button class="btn btn-yolk btn-sm" data-apply="${PARTS.map((p) => `${tr.id}:${p}`).join(',')}">${esc(t('sh.applyAll'))}</button>`;
+  else act = owns(`${tr.id}:${tr.part}`) ? `<button class="btn btn-yolk btn-sm" data-apply="${tr.id}:${tr.part}">${esc(t('sh.apply'))}</button>` : `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:${tr.part}">${esc(t('sh.buy'))} ${coin(pp(tr.id, tr.part))}</button>`;
+  return `<div class="cl3-try"><span>${esc(t('sh.trying', { w: name }))}</span><div class="cl3-try-a">${act}<button class="btn btn-white btn-sm" data-cl3-act="stop">${esc(t('sh.reset'))}</button></div></div>`;
+}
+
+function clStage() {
+  const scenes = SCENES.map((k) => `<button type="button" role="tab" aria-selected="${CL3.scene === k}" data-cl3-scene="${k}">${esc(t(`sc.${k}`))}</button>`).join('');
+  const chips = PARTS.map((p) => `<button type="button" class="cl3-chip${CL3.cat === p ? ' on' : ''}" data-cl3-cat="${p}"><span>${esc(t(`sh.${p}`))}</span><b>${esc(clWearName(p))}</b></button>`).join('');
+  const dirty = PARTS.some((p) => S.shop.on[p] !== 'def');
+  return `<section class="pane cl3-stage" id="cl3-stage" aria-label="${esc(t('cl3.stageH'))}">
+    <div class="cl3-sh"><div class="cl3-scenes" role="tablist">${scenes}</div>
+      <button type="button" class="btn btn-white btn-sm cl3-show${CL3.show ? ' on' : ''}" data-cl3-act="show" aria-pressed="${CL3.show}">${CL3.show ? clPause : clPlay}<span>${esc(t(CL3.show ? 'cl3.pause' : 'cl3.show'))}</span></button></div>
+    <div id="cl-frame" class="cl3-frame">${clFrame()}</div>
+    ${clTryBar()}
+    <div class="cl3-wear" aria-label="${esc(t('sh.look'))}">${chips}</div>
+    <div class="cl3-sf">${dirty ? `<button type="button" class="btn btn-white btn-sm" data-act="shop-reset">${esc(t('sh.resetAll'))}</button>` : '<span></span>'}<small>${esc(t('cl3.pick'))}</small></div>
+  </section>`;
+}
+
+function clItem(part, o) {
+  const on = S.shop.on[part] === o.id;
+  const tr = clTrying();
+  const trying = tr && tr.part === part && tr.id === o.id;
+  const look = { card: 'def', border: 'def', btn: 'def', font: 'def', [part]: o.id };
+  const slim = part === 'btn' || part === 'font';
+  const state = o.own
+    ? (on ? `<span class="stchip st-g">${ICON.check}<span>${esc(t('sh.applied'))}</span></span>` : `<span class="cl3-go">${esc(t('cl.wear'))}</span>`)
+    : `<span class="cl3-price">${coin(pp(o.id, part))}</span>`;
+  const sub = o.skin ? '<small>peakopass</small>' : o.th && isLeg(o.id) ? `<small class="cl3-rar ${rar(o.id)}">\u2605 ${esc(t(`sx.rar.${rar(o.id)}`))}</small>` : '';
+  return `<button type="button" class="cl3-item${on ? ' on' : ''}${o.own ? '' : ' lock'}${trying ? ' try' : ''}${slim ? ' slim' : ''}" data-cl3-pick="${part}:${o.id}" aria-pressed="${on}">
+    <span class="cl3-th">${sxCard(slim ? 'share' : 'panel', look)}${o.own ? '' : `<span class="ot-lock">${ICON.lockW}</span>`}</span>
+    <span class="cl3-nm"><b>${esc(o.n)}</b>${sub}</span>${state}</button>`;
+}
+
+function clFavs() {
+  const list = THEMES.filter((th) => SXF.includes(th.id));
+  if (!list.length) return `<div class="cl3-empty"><b>${esc(t('cl3.favEmptyH'))}</b><p>${esc(t('cl3.favEmpty'))}</p><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button></div>`;
+  const tr = clTrying();
+  return `<div class="cl3-favs">${list.map((th) => {
+    const have = PARTS.filter((p) => owns(`${th.id}:${p}`));
+    const left = packLeft(th.id);
+    const look = Object.fromEntries(PARTS.map((p) => [p, th.id]));
+    const trying = tr && tr.part === 'all' && tr.id === th.id;
+    return `<article class="cl3-fav${trying ? ' try' : ''}">
+      <button type="button" class="cl3-fav-pv" data-cl3-fav="prev:${th.id}" aria-label="${esc(t('sh.try'))}: ${esc(L(th.n))}">${sxCard('panel', look)}</button>
+      <div class="cl3-fav-i">
+        <div class="cl3-fav-t"><b>${esc(L(th.n))}</b>${isLeg(th.id) ? `<span class="rar-chip ${rar(th.id)}">\u2605 ${esc(t(`sx.rar.${rar(th.id)}`))}</span>` : ''}</div>
+        <small>${esc(t('cl3.have', { n: have.length, m: PARTS.length }))}</small>
+        <div class="cl3-fav-a">
+          <button type="button" class="btn btn-white btn-sm" data-cl3-fav="prev:${th.id}">${IC.eye}<span>${esc(t('sh.try'))}</span></button>
+          ${have.length ? `<button type="button" class="btn btn-yolk btn-sm" data-cl3-fav="wear:${th.id}">${esc(left.length ? t('cl3.wearOwned', { n: have.length }) : t('sh.applyAll'))}</button>` : ''}
+          ${left.length ? `<button type="button" class="btn ${have.length ? 'btn-white' : 'btn-yolk'} btn-sm" data-sbuy="${th.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(th.id))}</button>` : ''}
+          <button type="button" class="cl3-unfav" data-cl3-fav="un:${th.id}" aria-label="${esc(t('sx.savedOne'))}: ${esc(L(th.n))}">\u2665</button>
+        </div></div></article>`;
+  }).join('')}</div>`;
+}
+
+function clAssets() {
+  if (CL3.cat === 'fav') return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t('cl3.favH'))}</h3><small>${esc(t('cl3.favP'))}</small></div></div>${clFavs()}</aside>`;
+  const part = CL3.cat;
+  const all = clOptions(part);
+  const shown = all.filter((o) => CL3.all || o.own);
+  return `<aside class="pane cl3-assets" id="cl3-assets"><div class="cl3-ah"><div><h3>${esc(t(`sh.${part}`))}</h3><small>${esc(t(`cl.${part}P`))} \u00b7 ${esc(t('cl.have', { n: clCount(part) }))}</small></div>
+    <label class="cl3-all"><input type="checkbox" data-cl3-all ${CL3.all ? 'checked' : ''}><span>${esc(t('cl3.lockedToo'))}</span></label></div>
+    <div class="cl3-list">${shown.map((o) => clItem(part, o)).join('')}</div></aside>`;
+}
+
 VIEWS.closet = function () {
-  const sh = S.shop;
-  const options = (part) => {
-    const list = [{ id: 'def', n: t('sh.def'), own: true }];
-    if (part === 'card') (S.pass.skins || []).forEach((k) => list.push({ id: k, n: t(`k.${k}`), own: true, skin: true }));
-    THEMES.forEach((th) => list.push({ id: th.id, n: L(th.n), own: owns(`${th.id}:${part}`), key: `${th.id}:${part}` }));
-    return list;
-  };
-  const ownOnly = (sh.cl || 'own') === 'own';
-  const rows = PARTS.map((part) => {
-    const tiles = options(part).filter((o) => !ownOnly || o.own).map((o) => {
-      const on = sh.on[part] === o.id;
-      const look = { ...sh.on, [part]: o.id };
-      const use = `data-use="${part}:${o.id}"`;
-      const foot = o.own
-        ? (on ? `<span class="stchip st-g">${esc(t('sh.applied'))}</span>` : `<button class="btn btn-white btn-sm" ${use}>${esc(t('cl.wear'))}</button>`)
-        : `<button class="btn btn-yolk btn-sm" data-sbuy="${o.key}">${coin(pp(o.id, part))}</button>`;
-      return `<div class="otile${on ? ' on' : ''}${o.own ? '' : ' lock'}${part === 'btn' || part === 'font' ? ' slim' : ''}">
-        <button class="ot-pv" ${o.own ? use : `data-sbuy="${o.key}"`} aria-label="${esc(o.n)}">${tileCard(part, look)}${o.own ? '' : `<span class="ot-lock">${ICON.lockW}</span>`}</button>
-        <div class="ot-foot"><div><b>${esc(o.n)}</b>${o.skin ? `<small>peakopass</small>` : ''}</div>${foot}</div></div>`;
-    }).join('');
-    const n = options(part).filter((o) => o.own && o.id !== 'def').length;
-    return `<section class="pane crow"><div class="crow-h"><h3>${esc(t(`sh.${part}`))}</h3><small>${esc(t(`cl.${part}P`))} · ${esc(t('cl.have', { n }))}</small></div><div class="otiles">${tiles}</div></section>`;
+  const tabs = CL3_CATS.map((c) => {
+    const n = c === 'fav' ? THEMES.filter((th) => SXF.includes(th.id)).length : clCount(c);
+    return `<button type="button" role="tab" class="cl3-tab" aria-selected="${CL3.cat === c}" data-cl3-cat="${c}">${c === 'fav' ? '<span aria-hidden="true">\u2665</span>' : ''}<span>${esc(c === 'fav' ? t('cl3.favTab') : t(`sh.${c}`))}</span><i>${n}</i></button>`;
   }).join('');
   return `${vhead(t('cl.h'), t('cl.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button>`)}
-    <div class="scrollx">${seg('cl', sh.cl || 'own', [['own', t('cl.own')], ['all', t('cl.all')]])}</div>
-    <div class="shop-grid"><div class="themes">${rows}</div>${lookAside()}</div>`;
+    <div id="cl3"><div class="cl3-tabs" role="tablist" aria-label="${esc(t('cl3.bar'))}">${tabs}</div>
+    <div class="cl3">${clStage()}${clAssets()}</div></div>`;
 };
+
+function clRender() { const y = scrollY; renderApp(); scrollTo(0, y); }
+function clSetScene(k) {
+  CL3.scene = k;
+  const f = $('#cl-frame');
+  if (f) f.innerHTML = clFrame();
+  $$('[data-cl3-scene]').forEach((b) => b.setAttribute('aria-selected', b.dataset.cl3Scene === k));
+}
+function clStep() {
+  if (!CL3.show || !$('#cl-frame')) { clearInterval(CL3.timer); CL3.timer = 0; if (!$('#cl-frame')) CL3.show = false; return; }
+  clSetScene(SCENES[(SCENES.indexOf(CL3.scene) + 1) % SCENES.length]);
+}
+function clShow(on) {
+  CL3.show = on;
+  clearInterval(CL3.timer);
+  CL3.timer = on ? setInterval(clStep, 3200) : 0;
+  clRender();
+}
+document.addEventListener('click', (e) => {
+  if (!$('#cl3')) return;
+  const q = (s) => e.target.closest(s);
+  let el;
+  if ((el = q('[data-cl3-cat]'))) { CL3.cat = el.dataset.cl3Cat; CL3.tr = null; clRender(); return; }
+  if ((el = q('[data-cl3-scene]'))) { CL3.show = false; clearInterval(CL3.timer); CL3.timer = 0; clSetScene(el.dataset.cl3Scene); const b = $('.cl3-show'); if (b) { b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); b.innerHTML = `${clPlay}<span>${esc(t('cl3.show'))}</span>`; } return; }
+  if ((el = q('[data-cl3-act]'))) {
+    const a = el.dataset.cl3Act;
+    if (a === 'show') clShow(!CL3.show);
+    else if (a === 'stop') { CL3.tr = null; clRender(); }
+    return;
+  }
+  if ((el = q('[data-cl3-pick]'))) {
+    const [part, id] = el.dataset.cl3Pick.split(':');
+    const own = id === 'def' || (part === 'card' && clSkins().includes(id)) || owns(`${id}:${part}`);
+    if (part === 'border' && (id === 'samurai' || id === 'pirate')) CL3.scene = 'link';
+    if (own) { CL3.tr = null; shopUse(`${part}:${id}`); } else { CL3.tr = { part, id }; clRender(); }
+    return;
+  }
+  if ((el = q('[data-cl3-fav]'))) {
+    const [a, id] = el.dataset.cl3Fav.split(':');
+    if (a === 'prev') { CL3.tr = { part: 'all', id }; if (id === 'samurai' || id === 'pirate') CL3.scene = 'link'; track('view', id); clRender(); const st = $('#cl3-stage'); if (st && matchMedia('(max-width: 1000px)').matches) scrollTo({ top: st.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); }
+    else if (a === 'wear') { CL3.tr = null; shopApply(PARTS.filter((p) => owns(`${id}:${p}`)).map((p) => `${id}:${p}`).join(',')); }
+    else if (a === 'un') { const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); sxSaveFav(); if (CL3.tr && CL3.tr.id === id) CL3.tr = null; clRender(); }
+  }
+}, false);
+document.addEventListener('change', (e) => { if (e.target.closest?.('[data-cl3-all]') && $('#cl3')) { CL3.all = e.target.checked; clRender(); } }, false);
+Object.assign(T.en, { "cl.p": "Everything you own. Pick what to change on top, then wear a piece from the list on the right.", "cl3.stageH": "Preview", "cl3.show": "Slideshow", "cl3.pause": "Pause", "cl3.pick": "Pick a piece on the right to see it here.", "cl3.favTab": "Favourites", "cl3.favH": "My favourites", "cl3.favP": "Themes you saved with \u2665 in the shop.", "cl3.favEmptyH": "Nothing saved yet", "cl3.favEmpty": "Tap the \u2665 on a theme in the shop and it shows up here.", "cl3.have": "{n} of {m} pieces are yours", "cl3.wearOwned": "Wear what I have ({n})", "cl3.lockedToo": "Show locked too", "cl3.bar": "What do you want to change", "cl3.from": "from" });
+Object.assign(T.fa, { "cl.p": "\u0647\u0631 \u0686\u06cc \u062f\u0627\u0631\u06cc \u0627\u06cc\u0646\u062c\u0627\u0633\u062a. \u0628\u0627\u0644\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646 \u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u06cc\u060c \u0628\u0639\u062f \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u06cc\u0647 \u062a\u06a9\u0647 \u0628\u067e\u0648\u0634.", "cl3.stageH": "\u067e\u06cc\u0634\u200c\u0646\u0645\u0627\u06cc\u0634", "cl3.show": "\u0627\u0633\u0644\u0627\u06cc\u062f \u0634\u0648", "cl3.pause": "\u062a\u0648\u0642\u0641", "cl3.pick": "\u06cc\u0647 \u062a\u06a9\u0647 \u0631\u0648 \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u0628\u0631\u062f\u0627\u0631 \u062a\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0628\u0628\u06cc\u0646\u06cc.", "cl3.favTab": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627", "cl3.favH": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.favP": "\u062a\u0645\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0628\u0627 \u2665 \u0630\u062e\u06cc\u0631\u0647 \u06a9\u0631\u062f\u06cc.", "cl3.favEmptyH": "\u0647\u0646\u0648\u0632 \u0686\u06cc\u0632\u06cc \u0630\u062e\u06cc\u0631\u0647 \u0646\u06a9\u0631\u062f\u06cc", "cl3.favEmpty": "\u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0631\u0648\u06cc \u2665 \u06cc\u0647 \u062a\u0645 \u0628\u0632\u0646\u060c \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.have": "{n} \u0627\u0632 {m} \u062a\u06a9\u0647 \u0645\u0627\u0644 \u062a\u0648\u0626\u0647", "cl3.wearOwned": "\u0645\u0627\u0644 \u062e\u0648\u062f\u0645 \u0631\u0648 \u0628\u067e\u0648\u0634 ({n})", "cl3.lockedToo": "\u0642\u0641\u0644\u200c\u0634\u062f\u0647\u200c\u0647\u0627 \u0647\u0645", "cl3.bar": "\u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u0645", "cl3.from": "\u0627\u0632" });
+document.head.insertAdjacentHTML('beforeend', `<style>
+.cl3-tabs{display:flex;gap:6px;overflow-x:auto;padding:6px;margin:0 0 14px;background:var(--white);border-radius:20px;box-shadow:var(--shadow);scrollbar-width:none}
+.cl3-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;border:0;border-radius:14px;background:transparent;color:var(--ink-2);font:700 15px var(--en);cursor:pointer;white-space:nowrap;transition:background .2s,color .2s}
+html[lang='fa'] .cl3-tab{font-family:var(--fa-body)}
+.cl3-tab:hover{background:var(--paper)}
+.cl3-tab[aria-selected='true']{background:var(--ink);color:#fff}
+.cl3-tab i{font:800 11.5px var(--en);font-style:normal;min-width:22px;padding:2px 7px;border-radius:99px;background:var(--paper);color:var(--ink-2);text-align:center}
+.cl3-tab[aria-selected='true'] i{background:rgba(255,255,255,.22);color:#fff}
+.cl3-tab:focus-visible,.cl3-item:focus-visible,.cl3-chip:focus-visible,.cl3-scenes button:focus-visible,.cl3-fav-pv:focus-visible,.cl3-unfav:focus-visible{outline:3px solid var(--blurple);outline-offset:2px}
+.cl3{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(340px,.8fr);gap:16px;align-items:start}
+.cl3-stage{position:sticky;top:12px;display:grid;gap:12px;padding:16px}
+.cl3-sh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cl3-scenes{display:flex;gap:4px;padding:4px;background:var(--paper);border-radius:14px;flex-wrap:wrap}
+.cl3-scenes button{border:0;background:transparent;border-radius:10px;padding:7px 12px;font:700 13.5px var(--en);color:var(--ink-2);cursor:pointer}
+html[lang='fa'] .cl3-scenes button{font-family:var(--fa-body)}
+.cl3-scenes button[aria-selected='true']{background:var(--ink);color:#fff}
+.cl3-show{display:inline-flex;align-items:center;gap:7px}
+.cl3-show.on{background:#eef0ff;box-shadow:inset 0 0 0 2px var(--blurple)}
+.cl3-frame .dframe{padding:16px}
+.cl3-frame .dframe .bcard{border-radius:12px}
+.cl3-frame .sx-note{color:#949ba4;font-size:12.5px;margin:6px 2px 0}
+.cl3-try{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:#fff7dd;border:1.5px solid #f0d58a;border-radius:14px;font-size:14px}
+.cl3-try-a{display:flex;gap:8px;flex-wrap:wrap}
+.cl3-wear{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.cl3-chip{display:grid;gap:2px;text-align:start;padding:9px 12px;border:1.5px solid transparent;border-radius:14px;background:var(--paper);cursor:pointer;font:inherit;color:var(--ink);min-width:0}
+.cl3-chip span{font-size:12px;color:var(--ink-3)}
+.cl3-chip b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cl3-chip.on{border-color:var(--blurple);background:#eef0ff}
+.cl3-sf{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cl3-sf small{color:var(--ink-3)}
+.cl3-assets{padding:16px;display:grid;gap:12px;align-content:start}
+.cl3-ah{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cl3-ah h3{margin:0}
+.cl3-ah small{color:var(--ink-3);font-size:13px}
+.cl3-all{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-2);cursor:pointer}
+.cl3-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;max-height:calc(100vh - 210px);overflow:auto;padding:3px;scrollbar-width:thin}
+.cl3-item{display:grid;gap:8px;align-content:start;text-align:start;padding:8px;border:2px solid transparent;border-radius:18px;background:var(--paper);cursor:pointer;font:inherit;color:var(--ink);transition:transform .15s,box-shadow .2s}
+.cl3-item:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(36,27,72,.12)}
+.cl3-item.on{border-color:var(--mint-2)}
+.cl3-item.try{border-color:var(--blurple)}
+.cl3-item.lock .cl3-th{filter:saturate(.55);opacity:.85}
+.cl3-th{position:relative;display:block;border-radius:12px;overflow:hidden;line-height:0}
+.cl3-th .bcard{border-radius:10px}
+.cl3-th .sx-note,.cl3-fav-pv .sx-note{display:none}
+.cl3-nm{display:grid;gap:1px;padding:0 4px}
+.cl3-nm b{font-size:14.5px}
+.cl3-nm small{font-size:12px;color:var(--ink-3)}
+.cl3-nm .cl3-rar.legendary{color:#b07a12}
+.cl3-nm .cl3-rar.epic{color:#7c4fd6}
+.cl3-nm .cl3-rar.rare{color:#2f7fd1}
+.cl3-go{justify-self:start;margin:0 4px 4px;padding:6px 14px;border-radius:99px;background:#fff;box-shadow:inset 0 0 0 1.5px var(--ink);font:700 13px var(--en)}
+html[lang='fa'] .cl3-go{font-family:var(--fa-body)}
+.cl3-price,.cl3-item>.stchip{justify-self:start;margin:0 4px 4px}
+.cl3-favs{display:grid;gap:12px;max-height:calc(100vh - 210px);overflow:auto;padding:3px;scrollbar-width:thin}
+.cl3-fav{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;padding:10px;border-radius:18px;background:var(--paper);border:2px solid transparent}
+.cl3-fav.try{border-color:var(--blurple)}
+.cl3-fav-pv{border:0;padding:0;background:none;cursor:pointer;border-radius:12px;overflow:hidden;line-height:0;align-self:start}
+.cl3-fav-i{display:grid;gap:6px;align-content:start;min-width:0}
+.cl3-fav-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cl3-fav-t b{font-size:16.5px}
+.cl3-fav-i>small{color:var(--ink-3)}
+.cl3-fav-a{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cl3-unfav{margin-inline-start:auto;width:36px;height:36px;border:0;border-radius:11px;background:transparent;font-size:20px;color:#d6336c;cursor:pointer}
+.cl3-unfav:hover{background:#fff}
+.cl3-empty{text-align:center;padding:30px 12px;display:grid;gap:8px;justify-items:center;color:var(--ink-2)}
+.cl3-empty p{margin:0}
+@media (max-width:1100px){.cl3{grid-template-columns:1fr}.cl3-stage{position:static}.cl3-list,.cl3-favs{max-height:none}}
+@media (max-width:640px){.cl3-wear{grid-template-columns:repeat(2,minmax(0,1fr))}.cl3-fav{grid-template-columns:1fr}.cl3-fav-pv{max-width:260px}.cl3-tab{padding:0 14px}}
+@media (prefers-reduced-motion:reduce){.cl3-item{transition:none}.cl3-item:hover{transform:none}}
+/* new in the shop */
+.slide.sl3{min-height:270px;padding:24px 34px 58px;gap:30px;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:center}
+.sl3-txt{display:grid;gap:9px;justify-items:start}
+.sl3-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.slide.sl3 .sl-h{margin:2px 0 0;font-size:clamp(26px,3vw,38px)}
+.slide.sl3 p{margin:0;max-width:44ch}
+.sl3-parts{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:2px 0 0;padding:0}
+.sl3-parts li{font:700 12px var(--en);padding:4px 11px;border-radius:99px;background:rgba(255,255,255,.7);color:var(--ink-2);box-shadow:inset 0 0 0 1px rgba(36,27,72,.08)}
+html[lang='fa'] .sl3-parts li{font-family:var(--fa-body);font-size:12.5px}
+.sl3-price{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;color:var(--tk-soft,var(--ink-2))}
+.sl3-price span{display:inline-flex;align-items:center;gap:6px}
+.sl3-price i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.45}
+.sl3-cta{margin-top:4px}
+.sl3-art{position:relative;display:grid;place-items:center;min-width:0;align-self:stretch}
+.sl3-card{width:min(100%,370px);transform:rotate(-2.5deg);filter:drop-shadow(0 16px 22px rgba(36,27,72,.3))}
+html[dir='rtl'] .sl3-card{transform:rotate(2.5deg)}
+.sl3-card .bcard{border-radius:14px;box-shadow:0 0 0 5px rgba(255,255,255,.88)}
+.sl3-card .sx-note{display:none}
+.sl3-orb{position:absolute;inset-inline-end:0;top:-6px;width:70px;filter:drop-shadow(0 8px 10px rgba(36,27,72,.28));pointer-events:none}
+.sl3-img{position:relative;width:clamp(150px,20vw,240px);filter:drop-shadow(0 12px 18px rgba(36,27,72,.25));pointer-events:none}
+.sl3-glow{position:absolute;width:min(78%,300px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.85),rgba(255,255,255,0) 68%)}
+@media (max-width:760px){.slide.sl3{grid-template-columns:1fr;padding:20px 20px 60px;min-height:0}.sl3-art{display:none}}
+/* peakopass ticket in the side menu */
+.side .pass-cta{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;flex:none;min-height:70px;margin:12px 0 6px;padding:12px;border:1px solid rgba(246,194,58,.4);border-radius:18px;background:radial-gradient(120% 150% at 0% 0%,rgba(246,194,58,.22),transparent 58%),linear-gradient(160deg,#37297a,#211846);-webkit-mask:none;mask:none;animation:none;box-shadow:0 8px 20px rgba(10,6,30,.35),inset 0 1px 0 rgba(255,255,255,.12)}
+.side .pass-cta .pc-chick{width:44px;height:44px;border-radius:14px;background:linear-gradient(145deg,#ffe596,#f4a636);box-shadow:inset 0 -3px 0 rgba(120,60,0,.18)}
+.side .pass-cta .pc-chick img{width:38px;height:38px}
+.side .pass-cta .pc-t{display:grid;gap:2px;min-width:0}
+.side .pass-cta .pc-t b{font:800 15px var(--en);letter-spacing:.01em;color:#fff}
+.side .pass-cta .pc-t b::before{content:'✦';color:#f6c23a;margin-inline-end:6px;font-size:12px}
+.side .pass-cta .pc-t small{color:#d9d0f4;font-size:12.5px}
+.side .pass-cta .pc-bar{display:block;height:6px;margin-top:5px;border-radius:99px;background:rgba(255,255,255,.16);overflow:hidden}
+.side .pass-cta .pc-bar u{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#f6c23a,#ff9a4d);text-decoration:none}
+.side .pass-cta .pc-gift{align-self:start}
+.side .pass-cta[aria-current='page']{border-color:#f6c23a;box-shadow:0 0 0 2px rgba(246,194,58,.55),0 8px 20px rgba(10,6,30,.35)}
+/* referral */
+.rf-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin:0 0 10px;border-radius:16px;background:var(--paper)}
+.rf-row>div{display:grid;gap:2px;min-width:0}
+.rf-l{font-size:12.5px;color:var(--ink-3);font-weight:700}
+.rf-code{font:800 22px var(--en);letter-spacing:.08em;direction:ltr;text-align:start}
+.rf-row small{color:var(--ink-3);font-size:12.5px}
+.rf-edit{display:flex;gap:8px}
+.rf-edit .inp{flex:1;min-width:0}
+</style>`);
 function syncLook() {
   if (!S.live) return;
   webApi('/web/look', { look: S.shop.on }).then((r) => { if (r?.look) S.shop.on = r.look; }).catch(() => toast(t('sh.err')));
@@ -4966,14 +5207,33 @@ function shopUse(v) {
 
 /* the home slideshow */
 const SL = { i: 0, timer: 0, hover: false };
+/* v33: the "new in the shop" slides show the real card of the theme, its rarity, its four pieces and its price */
+let SL3C = { sig: '', map: {} };
+function sl3Card(id) {
+  const sig = `${LANG}|${S.coins}|${S.link && S.link.code}|${S.user && S.user.name}`;
+  if (SL3C.sig !== sig) SL3C = { sig, map: {} };
+  return (SL3C.map[id] ??= sxCard('panel', Object.fromEntries(PARTS.map((p) => [p, id]))));
+}
 function slides() {
+  const offer = sxOffer();
   const items = [
-    ...(sxOffer() ? [{ id: 'shop', img: 'bundle', cls: 'sl-bundle', chip: t('sx.offerChip', { n: sxOffer().pct }), h: t('sx.offerH'), p: t('sx.offerP', { n: sxOffer().pct }), cta: t('sl.open') }] : []),
-    ...THEMES.map((th) => ({ id: th.id, img: `theme-${th.id}`, cls: `card-${th.id} font-${th.id}`, chip: t('sl.new'), h: t('sl.themeH', { n: L(th.n) }), p: L(th.d), cta: t('sl.try') })),
-    { id: 'shop', img: 'shop', cls: 'sl-shop', chip: t('nav.shop'), h: t('sl.mixH'), p: t('sl.mixP'), cta: t('sl.open') },
+    ...(offer ? [{ id: 'shop', kind: 'img', img: 'bundle', cls: 'sl-bundle', chip: t('sx.offerChip', { n: offer.pct }), h: t('sx.offerH'), p: t('sx.offerP', { n: offer.pct }), cta: t('sl.open') }] : []),
+    ...THEMES.map((th) => ({ id: th.id, kind: 'theme', th, img: `theme-${th.id}`, cls: `card-${th.id} font-${th.id}`, chip: t('sl.new'), h: t('sl.themeH', { n: L(th.n) }), p: L(th.d), cta: t('sl.try') })),
+    { id: 'shop', kind: 'img', img: 'shop', cls: 'sl-shop', chip: t('nav.shop'), h: t('sl.mixH'), p: t('sl.mixP'), cta: t('sl.open') },
   ];
+  const art = (s) => {
+    if (s.kind === 'theme') return `<div class="sl3-art"><div class="sl3-card">${sl3Card(s.id)}</div>${pic(s.img, 'sl3-orb')}</div>`;
+    return `<div class="sl3-art"><span class="sl3-glow" aria-hidden="true"></span>${pic(s.img, 'sl3-img')}</div>`;
+  };
+  const meta = (s) => {
+    if (s.kind !== 'theme') return '';
+    const from = Math.min(...PARTS.map((p) => pp(s.id, p)));
+    return `<ul class="sl3-parts">${PARTS.map((p) => `<li>${esc(t(`sh.${p}`))}</li>`).join('')}</ul>`
+      + `<div class="sl3-price"><span>${esc(t('cl3.from'))} ${coin(from)}</span><i aria-hidden="true"></i><span>${esc(t('sh.pack'))} ${coin(packPrice(s.id))}</span></div>`;
+  };
+  const rarity = (s) => (s.kind === 'theme' && isLeg(s.id) ? `<span class="rar-chip ${rar(s.id)}">\u2605 ${esc(t(`sx.rar.${rar(s.id)}`))}</span>` : '');
   return `<div class="slider" id="slider" aria-roledescription="carousel">
-    <div class="sl-track" id="sl-track">${items.map((s, i) => `<div class="slide ${s.cls}" role="group" aria-label="${i + 1} / ${items.length}"><div class="sl-txt"><span class="sl-chip">${esc(s.chip)}</span><b class="sl-h tc-t">${esc(s.h)}</b><p>${esc(s.p)}</p><button class="btn btn-yolk btn-sm" data-shopgo="${s.id}">${esc(s.cta)}</button></div>${pic(s.img, 'sl-img')}</div>`).join('')}</div>
+    <div class="sl-track" id="sl-track">${items.map((s, i) => `<div class="slide sl3 ${s.cls}" role="group" aria-label="${i + 1} / ${items.length}"><div class="sl-txt sl3-txt"><div class="sl3-top"><span class="sl-chip">${esc(s.chip)}</span>${rarity(s)}</div><b class="sl-h tc-t">${esc(s.h)}</b><p>${esc(s.p)}</p>${meta(s)}<div class="sl3-cta"><button class="btn btn-yolk btn-sm" data-shopgo="${s.id}">${esc(s.cta)}</button></div></div>${art(s)}</div>`).join('')}</div>
     <div class="sl-nav">${ibtn('back', t('sl.prev'), 'sl-prev')}<div class="dots2">${items.map((_, i) => `<button data-slide="${i}" aria-label="${i + 1}" aria-current="${i === SL.i}"></button>`).join('')}</div>${ibtn('back', t('sl.next'), 'sl-next', 'fwd')}</div>
   </div>`;
 }
@@ -5513,10 +5773,25 @@ document.addEventListener('keydown', (e) => {
 }, false);
 
 function referralMarkup() {
-  const locked = REF.locked || !!REF.code;
-  const code = REF.code || '';
-  return `<section class="pane referral-card"><h3>${esc(t('ref.title'))}</h3><p class="hint">${esc(t('ref.note'))}</p>${locked ? `<div class="sw"><div><b>${esc(t('ref.locked'))} <span aria-hidden="true">🔒</span></b><small class="referral-code referral-locked">${esc(code)}</small></div><button class="btn btn-white btn-sm" data-ref-copy>${esc(t('ref.copy'))}</button></div>` : `<label class="field"><span>${esc(t('ref.choose'))}</span><input class="inp" id="ref-code" maxlength="16" autocomplete="off" value="${esc(REF.draft)}" placeholder="${esc(t('ref.placeholder'))}"></label><div class="referral-error" id="ref-code-error"></div><p class="referral-warning">${esc(t('ref.warning'))}</p><button class="btn btn-yolk" data-ref-set>${esc(t('ref.set'))}</button>`}${!REF.invitedBy ? `<label class="field"><span>${esc(t('ref.inviter'))}</span><input class="inp" id="ref-inviter" maxlength="16" autocomplete="off" value="${esc(REF.inviter)}"></label><div class="referral-error" id="ref-inviter-error"></div><button class="btn btn-white" data-ref-redeem>${esc(t('ref.redeem'))}</button>` : `<p class="referral-ok">${esc(t('ref.referred', { code: REF.invitedBy }))}</p>`}</section>`;
+  const chosen = REF.code || '';
+  const anon = REF.anon || (S.link && S.link.code) || '';
+  const codeRow = (label, code, hint, key) => `<div class="rf-row"><div><span class="rf-l">${esc(label)}</span><b class="rf-code num">${esc(code)}</b><small>${esc(hint)}</small></div><button type="button" class="btn btn-white btn-sm" data-ref-copy2="${key}">${esc(t('ref.copy'))}</button></div>`;
+  return `<section class="pane referral-card"><h3>${esc(t('ref.title'))}</h3><p class="hint">${esc(t('ref.note'))}</p>
+    ${anon ? codeRow(t('ref.anonL'), anon, t('ref.anonH'), 'anon') : ''}
+    ${chosen ? codeRow(t('ref.chosenL'), chosen, t('ref.chosenH'), 'chosen') : ''}
+    <label class="field"><span>${esc(chosen ? t('ref.changeL') : t('ref.choose'))}</span><span class="rf-edit"><input class="inp" id="ref-code" maxlength="16" autocomplete="off" value="${esc(REF.draft)}" placeholder="${esc(t('ref.placeholder'))}"><button type="button" class="btn btn-yolk" data-ref-set>${esc(chosen ? t('ref.change') : t('ref.set'))}</button></span></label>
+    <div class="referral-error" id="ref-code-error"></div><p class="referral-warning">${esc(t('ref.warning'))}</p>
+    ${!REF.invitedBy ? `<label class="field"><span>${esc(t('ref.inviter'))}</span><input class="inp" id="ref-inviter" maxlength="16" autocomplete="off" value="${esc(REF.inviter)}"></label><div class="referral-error" id="ref-inviter-error"></div><button class="btn btn-white" data-ref-redeem>${esc(t('ref.redeem'))}</button>` : `<p class="referral-ok">${esc(t('ref.referred', { code: REF.invitedBy }))}</p>`}</section>`;
 }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ref-copy2]');
+  if (!b) return;
+  const v = b.dataset.refCopy2 === 'anon' ? (REF.anon || (S.link && S.link.code) || '') : (REF.code || '');
+  try { navigator.clipboard.writeText(v); } catch { /* no clipboard */ }
+  toast(t('ref.copied'), 'link');
+}, false);
+Object.assign(T.en, { "ref.note": "You have two codes and both work for referrals: the anonymous code of your link and the one you choose. Your inviter earns coins, and you can use one code in total.", "ref.anonL": "Your anonymous code", "ref.anonH": "The code on your link. It works as a referral code too.", "ref.chosenL": "Your chosen code", "ref.chosenH": "Change it whenever you like.", "ref.changeL": "Change your chosen code", "ref.change": "Save new code", "ref.warning": "You can change your chosen code any time. The old one stops working right away.", "ref.confirmTitle": "Save this referral code?", "ref.confirm": "Save code" });
+Object.assign(T.fa, { "ref.note": "\u062f\u0648 \u062a\u0627 \u06a9\u062f \u062f\u0627\u0631\u06cc \u0648 \u0647\u0631 \u062f\u0648 \u0628\u0631\u0627\u06cc \u0645\u0639\u0631\u0641\u06cc \u06a9\u0627\u0631 \u0645\u06cc\u200c\u06a9\u0646\u0646: \u06a9\u062f \u0646\u0627\u0634\u0646\u0627\u0633\u0650 \u0644\u06cc\u0646\u06a9\u062a \u0648 \u06a9\u062f \u062f\u0644\u062e\u0648\u0627\u0647\u062a. \u06a9\u0633\u06cc \u06a9\u0647 \u062f\u0639\u0648\u062a\u062a \u06a9\u0631\u062f\u0647 \u0633\u06a9\u0647 \u0645\u06cc\u200c\u06af\u06cc\u0631\u0647 \u0648 \u062a\u0648 \u062f\u0631 \u06a9\u0644 \u0641\u0642\u0637 \u0627\u0632 \u06cc\u06a9 \u06a9\u062f \u0645\u06cc\u200c\u062a\u0648\u0646\u06cc \u0627\u0633\u062a\u0641\u0627\u062f\u0647 \u06a9\u0646\u06cc.", "ref.anonL": "\u06a9\u062f \u0646\u0627\u0634\u0646\u0627\u0633 \u062a\u0648", "ref.anonH": "\u0647\u0645\u0648\u0646 \u06a9\u062f \u0644\u06cc\u0646\u06a9\u062a\u0647\u061b \u0628\u0647\u200c\u0639\u0646\u0648\u0627\u0646 \u06a9\u062f \u0645\u0639\u0631\u0641\u06cc \u0647\u0645 \u06a9\u0627\u0631 \u0645\u06cc\u200c\u06a9\u0646\u0647.", "ref.chosenL": "\u06a9\u062f \u062f\u0644\u062e\u0648\u0627\u0647 \u062a\u0648", "ref.chosenH": "\u0647\u0631 \u0648\u0642\u062a \u062e\u0648\u0627\u0633\u062a\u06cc \u0639\u0648\u0636\u0634 \u06a9\u0646.", "ref.changeL": "\u06a9\u062f \u062f\u0644\u062e\u0648\u0627\u0647\u062a \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646", "ref.change": "\u0630\u062e\u06cc\u0631\u0647\u0654 \u06a9\u062f \u062c\u062f\u06cc\u062f", "ref.warning": "\u06a9\u062f \u062f\u0644\u062e\u0648\u0627\u0647 \u0631\u0648 \u0647\u0631 \u0648\u0642\u062a \u062e\u0648\u0627\u0633\u062a\u06cc \u0645\u06cc\u200c\u062a\u0648\u0646\u06cc \u0639\u0648\u0636 \u06a9\u0646\u06cc\u061b \u06a9\u062f \u0642\u0628\u0644\u06cc \u0647\u0645\u0648\u0646 \u0644\u062d\u0638\u0647 \u0627\u0632 \u06a9\u0627\u0631 \u0645\u06cc\u200c\u0627\u0641\u062a\u0647.", "ref.confirmTitle": "\u0627\u06cc\u0646 \u06a9\u062f \u0645\u0639\u0631\u0641\u06cc \u0630\u062e\u06cc\u0631\u0647 \u0628\u0634\u0647\u061f", "ref.confirm": "\u0630\u062e\u06cc\u0631\u0647" });
 const oldLinkViewV31 = VIEWS.link;
 VIEWS.link = function () { return `${oldLinkViewV31()}${referralMarkup()}`; };
 
@@ -5541,7 +5816,7 @@ async function referralConfirm() {
   try {
     const r = S.live ? await webApi('/web/referral/set', { code }) : { ok: true, code };
     if (!r?.ok) throw Object.assign(new Error('ref'), { body: r });
-    REF.code = r.code || code; REF.locked = true; closeModal(); renderApp(); toast(t('ref.set'), 'settings');
+    REF.code = r.code || code; REF.locked = false; closeModal(); renderApp(); toast(t('ref.set'), 'settings');
   } catch (e) { closeModal(); toast(t(referralError(e.body?.error))); }
 }
 async function referralRedeem() {
