@@ -4856,18 +4856,23 @@ function cartBar() {
 }
 
 /* v33: my collection = one big preview, a bar to pick the mode (whole collections / favourites / custom) and the pieces I have */
-const CL3 = { mode: 'sets', cat: 'card', all: false, scene: 'home', tr: null };
+const CL3 = { mode: 'sets', cat: 'card', all: false, scene: 'home', tr: null, draft: null };
+/* nothing is sent to the bot until Save: changes live in a draft */
+const clBase = () => CL3.draft || S.shop.on;
+const clDirty = () => !!CL3.draft && PARTS.some((p) => CL3.draft[p] !== S.shop.on[p]);
+const clSetDraft = (patch) => { CL3.draft = { ...clBase(), ...patch }; if (!clDirty()) CL3.draft = null; };
 const CL3_PARTS = ['card', 'border', 'btn', 'font'];
 const CL3_SCENES = ['home', 'link'];
 const clSkins = () => (S.pass && S.pass.skins) || [];
 const clTrying = () => {
   const tr = CL3.tr;
   if (!tr) return null;
-  const worn = tr.part === 'all' ? PARTS.every((p) => S.shop.on[p] === tr.id) : S.shop.on[tr.part] === tr.id;
+  const base = clBase();
+  const worn = tr.part === 'all' ? PARTS.every((p) => base[p] === tr.id) : base[tr.part] === tr.id;
   return worn ? null : tr;
 };
 const clLook = () => {
-  const on = { ...S.shop.on };
+  const on = { ...clBase() };
   const tr = clTrying();
   if (tr) { if (tr.part === 'all') PARTS.forEach((p) => { on[p] = tr.id; }); else on[tr.part] = tr.id; }
   return on;
@@ -4883,7 +4888,7 @@ const clHave = (id) => PARTS.filter((p) => owns(`${id}:${p}`));
 const clSetsList = () => THEMES.filter((th) => CL3.all || clHave(th.id).length);
 const clFavList = () => THEMES.filter((th) => SXF.includes(th.id));
 const clFrame = () => dframe(sxSceneCard(CL3.scene, clLook()));
-const clWearName = (p) => { const v = S.shop.on[p]; return v === 'def' ? t('sh.def') : themeOf(v) ? L(themeOf(v).n) : t(`k.${v}`); };
+const clWearName = (p) => { const v = clBase()[p]; return v === 'def' ? t('sh.def') : themeOf(v) ? L(themeOf(v).n) : t(`k.${v}`); };
 
 function clTryBar() {
   const tr = clTrying();
@@ -4891,26 +4896,26 @@ function clTryBar() {
   const th = themeOf(tr.id);
   const name = tr.part === 'all' ? `${L(th.n)} \u00b7 ${t('sh.fullTheme')}` : `${L(th.n)} \u00b7 ${t(`sh.${tr.part}`)}`;
   let act;
-  if (tr.part === 'all') act = packLeft(tr.id).length ? `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(tr.id))}</button>` : `<button class="btn btn-yolk btn-sm" data-apply="${PARTS.map((p) => `${tr.id}:${p}`).join(',')}">${esc(t('sh.applyAll'))}</button>`;
-  else act = owns(`${tr.id}:${tr.part}`) ? `<button class="btn btn-yolk btn-sm" data-apply="${tr.id}:${tr.part}">${esc(t('sh.apply'))}</button>` : `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:${tr.part}">${esc(t('sh.buy'))} ${coin(pp(tr.id, tr.part))}</button>`;
+  if (tr.part === 'all') act = packLeft(tr.id).length ? `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:pack">${esc(t('sh.pack'))} ${coin(packPrice(tr.id))}</button>` : `<button class="btn btn-yolk btn-sm" data-cl3-fav="wear:${tr.id}">${esc(t('sh.applyAll'))}</button>`;
+  else act = owns(`${tr.id}:${tr.part}`) ? `<button class="btn btn-yolk btn-sm" data-cl3-pick="${tr.part}:${tr.id}">${esc(t('sh.apply'))}</button>` : `<button class="btn btn-yolk btn-sm" data-sbuy="${tr.id}:${tr.part}">${esc(t('sh.buy'))} ${coin(pp(tr.id, tr.part))}</button>`;
   return `<div class="cl3-try"><span>${esc(t('sh.trying', { w: name }))}</span><div class="cl3-try-a">${act}<button class="btn btn-white btn-sm" data-cl3-act="stop">${esc(t('sh.reset'))}</button></div></div>`;
 }
 
 function clStage() {
   const scenes = CL3_SCENES.map((k) => `<button type="button" role="tab" aria-selected="${CL3.scene === k}" data-cl3-scene="${k}">${esc(t(`sc.${k}`))}</button>`).join('');
   const chips = PARTS.map((p) => `<button type="button" class="cl3-chip" data-cl3-cat="${p}"><span>${esc(t(`sh.${p}`))}</span><b>${esc(clWearName(p))}</b></button>`).join('');
-  const dirty = PARTS.some((p) => S.shop.on[p] !== 'def');
+  const dirty = PARTS.some((p) => clBase()[p] !== 'def');
   return `<section class="pane cl3-stage" id="cl3-stage" aria-label="${esc(t('cl3.stageH'))}">
     <div class="cl3-sh"><h3>${esc(t('cl3.stageH'))}</h3><div class="cl3-scenes" role="tablist">${scenes}</div></div>
     <div id="cl-frame" class="cl3-frame">${clFrame()}</div>
     ${clTryBar()}
     <div class="cl3-wear" aria-label="${esc(t('sh.look'))}">${chips}</div>
-    <div class="cl3-sf">${dirty ? `<button type="button" class="btn btn-white btn-sm" data-act="shop-reset">${esc(t('sh.resetAll'))}</button>` : '<span></span>'}<small>${esc(t('cl3.pick'))}</small></div>
+    <div class="cl3-sf">${dirty ? `<button type="button" class="btn btn-white btn-sm" data-cl3-act="reset">${esc(t('sh.resetAll'))}</button>` : '<span></span>'}<small>${esc(t('cl3.pick'))}</small></div>
   </section>`;
 }
 
 function clItem(part, o) {
-  const on = S.shop.on[part] === o.id;
+  const on = clBase()[part] === o.id;
   const tr = clTrying();
   const trying = tr && tr.part === part && tr.id === o.id;
   const look = { card: 'def', border: 'def', btn: 'def', font: 'def', [part]: o.id };
@@ -4931,7 +4936,7 @@ function clSetCard(th) {
   const look = Object.fromEntries(PARTS.map((p) => [p, th.id]));
   const tr = clTrying();
   const trying = tr && tr.part === 'all' && tr.id === th.id;
-  const worn = PARTS.every((p) => S.shop.on[p] === th.id);
+  const worn = PARTS.every((p) => clBase()[p] === th.id);
   const fav = SXF.includes(th.id);
   const pips = PARTS.map((p) => `<i class="${owns(`${th.id}:${p}`) ? 'on' : ''}" title="${esc(t(`sh.${p}`))}"></i>`).join('');
   let main;
@@ -4975,8 +4980,15 @@ VIEWS.closet = function () {
   const tabs = modes.map(([m, label, n]) => `<button type="button" role="tab" class="cl3-tab" aria-selected="${CL3.mode === m}" data-cl3-mode="${m}">${m === 'fav' ? '<span aria-hidden="true">\u2665</span>' : ''}<span>${esc(label)}</span>${n === null ? '' : `<i>${n}</i>`}</button>`).join('');
   return `${vhead(t('cl.h'), t('cl.p'), `<span class="balance">${coin(S.coins)}</span><button class="btn btn-yolk btn-sm" data-tab="shop">${esc(t('cl.toShop'))}</button>`)}
     <div id="cl3"><div class="cl3-tabs" role="tablist" aria-label="${esc(t('cl3.bar'))}">${tabs}</div>
-    <div class="cl3">${clStage()}${clAssets()}</div></div>`;
+    <div class="cl3">${clStage()}${clAssets()}</div>${clSaveBar()}</div>`;
 };
+
+function clSaveBar() {
+  if (!clDirty()) return '';
+  const n = PARTS.filter((p) => CL3.draft[p] !== S.shop.on[p]).length;
+  return `<div class="cl3-save" role="region" aria-label="${esc(t('cl3.unsaved'))}"><span class="cl3-save-t"><i aria-hidden="true"></i><b>${esc(t('cl3.unsaved'))}</b><small>${esc(t('cl3.changes', { n }))}</small></span><div class="cl3-save-a"><button type="button" class="btn btn-white" data-cl3-act="discard">${esc(t('cl3.discard'))}</button><button type="button" class="btn btn-yolk" data-cl3-act="save">${esc(t('cl3.save'))}</button></div></div>`;
+}
+window.addEventListener('beforeunload', (e) => { if (clDirty()) { e.preventDefault(); e.returnValue = ''; } });
 
 function clRender() { const y = scrollY; renderApp(); scrollTo(0, y); }
 function clSetScene(k) {
@@ -4992,24 +5004,38 @@ document.addEventListener('click', (e) => {
   if ((el = q('[data-cl3-mode]'))) { CL3.mode = el.dataset.cl3Mode; CL3.tr = null; CL3.all = false; clRender(); return; }
   if ((el = q('[data-cl3-cat]'))) { CL3.mode = 'custom'; CL3.cat = el.dataset.cl3Cat; CL3.tr = null; clRender(); return; }
   if ((el = q('[data-cl3-scene]'))) { clSetScene(el.dataset.cl3Scene); return; }
-  if ((el = q('[data-cl3-act]'))) { if (el.dataset.cl3Act === 'stop') { CL3.tr = null; clRender(); } return; }
+  if ((el = q('[data-cl3-act]'))) {
+    const a = el.dataset.cl3Act;
+    if (a === 'stop') CL3.tr = null;
+    else if (a === 'reset') { CL3.tr = null; clSetDraft({ card: 'def', border: 'def', btn: 'def', font: 'def' }); }
+    else if (a === 'discard') { CL3.tr = null; CL3.draft = null; }
+    else if (a === 'save') {
+      if (clDirty()) { S.shop.on = { ...CL3.draft }; syncLook(); toast(S.live ? t('cl.synced') : t('sh.applyT'), 'settings'); }
+      CL3.draft = null; CL3.tr = null;
+    }
+    clRender();
+    return;
+  }
   if ((el = q('[data-cl3-pick]'))) {
     const [part, id] = el.dataset.cl3Pick.split(':');
     const own = id === 'def' || (part === 'card' && clSkins().includes(id)) || owns(`${id}:${part}`);
     if (part === 'border' && (id === 'samurai' || id === 'pirate')) CL3.scene = 'link';
-    if (own) { CL3.tr = null; shopUse(`${part}:${id}`); } else { CL3.tr = { part, id }; clRender(); }
+    if (own) { CL3.tr = null; clSetDraft({ [part]: id }); } else CL3.tr = { part, id };
+    clRender();
     return;
   }
   if ((el = q('[data-cl3-fav]'))) {
     const [a, id] = el.dataset.cl3Fav.split(':');
     if (a === 'prev') { CL3.tr = { part: 'all', id }; if (id === 'samurai' || id === 'pirate') CL3.scene = 'link'; track('view', id); clRender(); const st = $('#cl3-stage'); if (st && matchMedia('(max-width: 1100px)').matches) scrollTo({ top: st.getBoundingClientRect().top + scrollY - 72, behavior: 'smooth' }); }
-    else if (a === 'wear') { CL3.tr = null; shopApply(PARTS.filter((p) => owns(`${id}:${p}`)).map((p) => `${id}:${p}`).join(',')); }
+    else if (a === 'wear') { CL3.tr = null; clSetDraft(Object.fromEntries(PARTS.filter((p) => owns(`${id}:${p}`)).map((p) => [p, id]))); clRender(); }
     else if (a === 'tog') { const i = SXF.indexOf(id); if (i >= 0) SXF.splice(i, 1); else SXF.push(id); sxSaveFav(); clRender(); }
   }
 }, false);
 document.addEventListener('change', (e) => { if (e.target.closest?.('[data-cl3-all]') && $('#cl3')) { CL3.all = e.target.checked; clRender(); } }, false);
 Object.assign(T.en, { "cl.p": "Everything you own. Wear a whole collection at once, or switch to Custom and mix piece by piece.", "cl3.stageH": "Preview", "cl3.pick": "Pick something on the right to see it here.", "cl3.modeSets": "Collections", "cl3.modeFav": "Favourites", "cl3.modeCustom": "Custom", "cl3.setsH": "My collections", "cl3.setsP": "Whole themes: wear all four pieces in one tap.", "cl3.setsEmptyH": "No collection yet", "cl3.setsEmpty": "Buy any piece in the shop and its collection shows up here.", "cl3.allThemes": "Show all themes", "cl3.favH": "My favourites", "cl3.favP": "Themes you saved with \u2665 in the shop.", "cl3.favEmptyH": "Nothing saved yet", "cl3.favEmpty": "Tap the \u2665 on a theme in the shop (or here) and it shows up here.", "cl3.have": "{n} of {m} pieces are yours", "cl3.wearOwned": "Wear what I have ({n})", "cl3.getSet": "Get the collection", "cl3.complete": "Complete the collection", "cl3.lockedToo": "Show locked too", "cl3.bar": "What do you want to change", "cl3.from": "from" });
 Object.assign(T.fa, { "cl.p": "\u0647\u0631 \u0686\u06cc \u062f\u0627\u0631\u06cc \u0627\u06cc\u0646\u062c\u0627\u0633\u062a. \u06cc\u0647 \u06a9\u0627\u0644\u06a9\u0634\u0646 \u06a9\u0627\u0645\u0644 \u0631\u0648 \u06cc\u06a9\u200c\u062c\u0627 \u0628\u067e\u0648\u0634\u060c \u06cc\u0627 \u0628\u06cc\u0627 \u0631\u0648\u06cc \u00ab\u06a9\u0627\u0633\u062a\u0648\u0645\u00bb \u0648 \u062a\u06a9\u0647\u200c\u0628\u0647\u200c\u062a\u06a9\u0647 \u0642\u0627\u0637\u06cc \u06a9\u0646.", "cl3.stageH": "\u067e\u06cc\u0634\u200c\u0646\u0645\u0627\u06cc\u0634", "cl3.pick": "\u06cc\u0647 \u0686\u06cc\u0632\u06cc \u0631\u0648 \u0627\u0632 \u0633\u062a\u0648\u0646 \u06a9\u0646\u0627\u0631 \u0628\u0631\u062f\u0627\u0631 \u062a\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0628\u0628\u06cc\u0646\u06cc.", "cl3.modeSets": "\u06a9\u0627\u0644\u06a9\u0634\u0646\u200c\u0647\u0627", "cl3.modeFav": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627", "cl3.modeCustom": "\u06a9\u0627\u0633\u062a\u0648\u0645", "cl3.setsH": "\u06a9\u0627\u0644\u06a9\u0634\u0646\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.setsP": "\u062a\u0645 \u06a9\u0627\u0645\u0644: \u0647\u0631 \u0686\u0647\u0627\u0631 \u062a\u06a9\u0647 \u0628\u0627 \u06cc\u06a9 \u0636\u0631\u0628\u0647.", "cl3.setsEmptyH": "\u0647\u0646\u0648\u0632 \u06a9\u0627\u0644\u06a9\u0634\u0646\u06cc \u0646\u062f\u0627\u0631\u06cc", "cl3.setsEmpty": "\u06cc\u0647 \u062a\u06a9\u0647 \u0627\u0632 \u0641\u0631\u0648\u0634\u06af\u0627\u0647 \u0628\u062e\u0631\u060c \u06a9\u0627\u0644\u06a9\u0634\u0646\u0634 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.allThemes": "\u0647\u0645\u0647\u0654 \u062a\u0645\u200c\u0647\u0627", "cl3.favH": "\u0639\u0644\u0627\u0642\u0647\u200c\u0645\u0646\u062f\u06cc\u200c\u0647\u0627\u06cc \u0645\u0646", "cl3.favP": "\u062a\u0645\u200c\u0647\u0627\u06cc\u06cc \u06a9\u0647 \u0628\u0627 \u2665 \u0630\u062e\u06cc\u0631\u0647 \u06a9\u0631\u062f\u06cc.", "cl3.favEmptyH": "\u0647\u0646\u0648\u0632 \u0686\u06cc\u0632\u06cc \u0630\u062e\u06cc\u0631\u0647 \u0646\u06a9\u0631\u062f\u06cc", "cl3.favEmpty": "\u062a\u0648\u06cc \u0641\u0631\u0648\u0634\u06af\u0627\u0647 (\u06cc\u0627 \u0647\u0645\u06cc\u0646\u200c\u062c\u0627) \u0631\u0648\u06cc \u2665 \u06cc\u0647 \u062a\u0645 \u0628\u0632\u0646\u060c \u0627\u06cc\u0646\u062c\u0627 \u0645\u06cc\u0627\u062f.", "cl3.have": "{n} \u0627\u0632 {m} \u062a\u06a9\u0647 \u0645\u0627\u0644 \u062a\u0648\u0626\u0647", "cl3.wearOwned": "\u0645\u0627\u0644 \u062e\u0648\u062f\u0645 \u0631\u0648 \u0628\u067e\u0648\u0634 ({n})", "cl3.getSet": "\u06af\u0631\u0641\u062a\u0646 \u06a9\u0627\u0644\u06a9\u0634\u0646", "cl3.complete": "\u06a9\u0627\u0645\u0644 \u06a9\u0631\u062f\u0646 \u06a9\u0627\u0644\u06a9\u0634\u0646", "cl3.lockedToo": "\u0642\u0641\u0644\u200c\u0634\u062f\u0647\u200c\u0647\u0627 \u0647\u0645", "cl3.bar": "\u0686\u06cc \u0631\u0648 \u0639\u0648\u0636 \u06a9\u0646\u0645", "cl3.from": "\u0627\u0632" });
+Object.assign(T.en, { "cl3.unsaved": "Unsaved changes", "cl3.changes": "{n} to save", "cl3.save": "Save", "cl3.discard": "Discard" });
+Object.assign(T.fa, { "cl3.unsaved": "\u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u0630\u062e\u06cc\u0631\u0647\u200c\u0646\u0634\u062f\u0647", "cl3.changes": "{n} \u0645\u0648\u0631\u062f \u0628\u0631\u0627\u06cc \u0630\u062e\u06cc\u0631\u0647", "cl3.save": "\u0630\u062e\u06cc\u0631\u0647", "cl3.discard": "\u0644\u063a\u0648" });
 document.head.insertAdjacentHTML('beforeend', `<style>
 /* my collection */
 .cl3-tabs{display:flex;gap:6px;overflow-x:auto;padding:6px;margin:0 0 14px;background:var(--white);border-radius:20px;box-shadow:var(--shadow);scrollbar-width:none}
@@ -5103,6 +5129,13 @@ html[lang='fa'] .cl3-state{font-family:var(--fa-body)}
 @media (max-width:1100px){.cl3{grid-template-columns:1fr}.cl3-stage{position:static}.cl3-list,.cl3-sets{max-height:none}}
 @media (max-width:640px){.cl3-wear{grid-template-columns:repeat(2,minmax(0,1fr))}.cl3-tab{padding:0 14px}.cl3-subtabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.cl3-item{transition:none}.cl3-item:hover{transform:none}}
+.cl3-save{position:sticky;bottom:16px;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px;padding:12px 14px 12px 18px;border-radius:20px;background:#241b48;color:#fff;box-shadow:0 14px 34px rgba(36,27,72,.38)}
+.cl3-save-t{display:flex;align-items:center;gap:10px;min-width:0}
+.cl3-save-t i{width:9px;height:9px;border-radius:50%;background:#f6cf63;box-shadow:0 0 0 4px rgba(246,207,99,.25);flex:none}
+.cl3-save-t b{font-size:15px}
+.cl3-save-t small{color:#cfc4ee;font-size:13px}
+.cl3-save-a{display:flex;gap:8px}
+@media (max-width:520px){.cl3-save{bottom:10px}.cl3-save-a{width:100%}.cl3-save-a .btn{flex:1}}
 /* theme shop list: a calmer scroll area */
 .sx-col.sx-browse{scrollbar-gutter:stable;overscroll-behavior:contain;padding-inline-end:8px;background:linear-gradient(var(--white) 30%,rgba(255,255,255,0)) top/100% 34px no-repeat local,linear-gradient(rgba(255,255,255,0),var(--white) 70%) bottom/100% 34px no-repeat local,radial-gradient(farthest-side at 50% 0,rgba(70,49,127,.16),rgba(70,49,127,0)) top/100% 12px no-repeat scroll,radial-gradient(farthest-side at 50% 100%,rgba(70,49,127,.16),rgba(70,49,127,0)) bottom/100% 12px no-repeat scroll,var(--white)}
 /* new in the shop */
