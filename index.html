@@ -6097,5 +6097,153 @@ document.addEventListener('click', (e) => { const b = e.target.closest('button')
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (!b) return; if (b.dataset.tab === 'servers') ownerLoad(); if (b.dataset.tab === 'link') referralLoad(); }, false);
 if (document.body.classList.contains('in-app')) renderApp();
 </script>
+<script id="pk-gate34">
+/* site 34: (1) a person who never registered in the bot / accepted its rules sees why buying and rewards do nothing,
+   (2) before the peakopass launch day the pass page is a look-only preview: claim and buy are off, the quest log is locked,
+   and the start day is written. Everything the bot says comes in the answers of /web/me, /web/checkin, /web/quests (fetch is watched);
+   nothing here changes how the site calls the bot, so it keeps working if those answers have no such fields. */
+(() => {
+  const ST = { reg: null, launch: null };
+  const TXT = {
+    fa: {
+      gateH: 'اول توی ربات ثبت\u200cنام کن',
+      gateP: 'تا ثبت\u200cنام نکنی و قوانین ربات رو نپذیری، خرید پوسته، خرید سکه و جایزه کار نمی\u200cکنه (انگار حساب نداری). توی سرور پیکابو یک بار /anon رو بزن، قوانین رو بپذیر و بعد این صفحه رو تازه کن.',
+      gateT: 'اول توی ربات ثبت\u200cنام کن و قوانین رو بپذیر.',
+      soonH: 'پیکوپس از {date} شروع می\u200cشه',
+      soonP: 'ساعت {time} به وقت ایران. تا اون موقع می\u200cتونی مسیر فصل، جایزه\u200cها و پوسته\u200cها رو ببینی، ولی خرید، دریافت جایزه و کوست\u200cها بسته\u200cست.',
+      soonT: 'پیکوپس هنوز شروع نشده (از {date}).',
+      lock: '\u{1F512} کوست\u200cها از {date} باز می\u200cشن',
+      startIn: 'شروع پیکوپس',
+      left: '{d} روز و {h} ساعت و {m} دقیقه',
+    },
+    en: {
+      gateH: 'Register in the bot first',
+      gateP: 'Buying looks, buying coins and rewards only work after you start the bot and accept its rules (until then it is like having no account). Use /anon once in the peekaboo server, accept the rules, then refresh this page.',
+      gateT: 'Register in the bot and accept the rules first.',
+      soonH: 'peakopass starts on {date}',
+      soonP: 'At {time} Iran time. Until then you can look at the season road, the rewards and the looks, but buying, claiming and quests are closed.',
+      soonT: 'peakopass has not started yet (opens {date}).',
+      lock: '\u{1F512} Quests open on {date}',
+      startIn: 'peakopass starts in',
+      left: '{d}d {h}h {m}m',
+    },
+  };
+  const lang = () => (typeof LANG === 'string' && LANG === 'fa' ? 'fa' : 'en');
+  const tx = (k, v = {}) => TXT[lang()][k].replace(/\{(\w+)\}/g, (_, n) => (v[n] === undefined ? '' : v[n]));
+  const noAccount = () => {
+    try { return S.noProfile === true || (S.live === true && ST.reg === false); } catch { return false; }
+  };
+  const notStarted = () => Boolean(ST.launch && ST.launch.started === false && Number(ST.launch.at) > 0);
+  const when = () => {
+    const d = new Date(Number(ST.launch.at));
+    const loc = lang() === 'fa' ? 'fa-IR-u-ca-gregory' : 'en-GB';
+    const o = { timeZone: 'Asia/Tehran' };
+    return {
+      date: d.toLocaleDateString(loc, { ...o, day: 'numeric', month: 'long', year: 'numeric' }),
+      time: d.toLocaleTimeString(loc, { ...o, hour: '2-digit', minute: '2-digit', hour12: false }),
+    };
+  };
+  const say = (m) => { try { if (typeof toast === 'function') toast(m); } catch {} };
+  const PASS_ONLY = '[data-act="checkin"],[data-act="pass-buy"]';
+  const MONEY = `${PASS_ONLY},[data-act="pay-ok"],[data-act="lpay-ok"],[data-sbuy],[data-sbuy-ok],[data-buy],[data-pkg]`;
+
+  const take = (d) => {
+    if (!d || typeof d !== 'object') return;
+    const m = d.me && typeof d.me === 'object' ? d.me : d;
+    if (m.pass && m.pass.launch) ST.launch = m.pass.launch;
+    else if (d.launch && d.season) ST.launch = d.launch;
+    if (typeof m.registered === 'boolean') ST.reg = m.registered;
+    setTimeout(run, 0);
+  };
+  const realFetch = window.fetch;
+  window.fetch = function (input) {
+    const p = realFetch.apply(this, arguments);
+    try {
+      const u = String(typeof input === 'string' ? input : (input && input.url) || '');
+      if (/\/web\/(me|checkin|quests|pass\/buy)(\?|$)/.test(u)) p.then((r) => r.clone().json().then(take).catch(() => {})).catch(() => {});
+    } catch {}
+    return p;
+  };
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .pk-veil{position:relative;pointer-events:none;user-select:none;min-height:140px}
+    .pk-veil>*{filter:blur(6px) grayscale(.35);opacity:.5}
+    .pk-veil::after{content:attr(data-pk-lock);position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;font-weight:800;font-size:1.15rem;color:#3b2a1a;background:rgba(255,248,230,.35);border-radius:inherit}
+    .pk-off{opacity:.55;cursor:not-allowed}
+    #pk-gate-note{margin-bottom:14px}`;
+  document.head.appendChild(style);
+
+  let busy = false;
+  let timer = 0;
+  function apply() {
+    const main = document.getElementById('main');
+    if (!main) return;
+    const mode = noAccount() ? 'acc' : notStarted() && typeof TAB === 'string' && (TAB === 'pass' || TAB === 'home') ? 'soon' : '';
+    let note = document.getElementById('pk-gate-note');
+    const key = mode ? `${mode}:${lang()}:${mode === 'soon' ? ST.launch.at : ''}` : '';
+    if (!mode) { if (note) note.remove(); }
+    else if (!note || note.dataset.key !== key) {
+      if (note) note.remove();
+      note = document.createElement('div');
+      note.id = 'pk-gate-note';
+      note.className = 'notice';
+      note.dataset.key = key;
+      const b = document.createElement('b');
+      const s = document.createElement('span');
+      if (mode === 'acc') { b.textContent = tx('gateH'); s.textContent = tx('gateP'); }
+      else { const w = when(); b.textContent = tx('soonH', w); s.textContent = tx('soonP', w); }
+      note.append(b, s);
+      main.insertBefore(note, main.firstChild);
+    }
+    const off = mode === 'acc' ? MONEY : notStarted() ? PASS_ONLY : '';
+    if (off) main.querySelectorAll(off).forEach((el) => { el.classList.add('pk-off'); el.setAttribute('aria-disabled', 'true'); });
+    if (notStarted()) {
+      const w = when();
+      main.querySelectorAll('.pz-quests').forEach((el) => { el.classList.add('pk-veil'); el.setAttribute('data-pk-lock', tx('lock', w)); });
+      main.querySelectorAll('.pz-stub').forEach((el) => {
+        if (el.dataset.pk) return;
+        el.dataset.pk = '1';
+        el.innerHTML = '';
+        const small = document.createElement('small'); small.textContent = tx('startIn');
+        const num = document.createElement('b'); num.className = 'num'; num.setAttribute('data-pk-cd', '1');
+        const span = document.createElement('span'); span.textContent = `${w.date} · ${w.time}`;
+        el.append(small, num, span);
+      });
+      tick();
+    }
+  }
+  function tick() {
+    const el = document.querySelector('[data-pk-cd]');
+    if (!el || !notStarted()) return;
+    let ms = Math.max(0, Number(ST.launch.at) - Date.now());
+    const d = Math.floor(ms / 86400000); ms -= d * 86400000;
+    const h = Math.floor(ms / 3600000); ms -= h * 3600000;
+    el.textContent = tx('left', { d, h, m: Math.floor(ms / 60000) });
+    if (!timer) timer = setInterval(tick, 20000);
+  }
+  function run() {
+    if (busy) return;
+    busy = true;
+    try { obs.disconnect(); apply(); } catch {} finally {
+      busy = false;
+      const main = document.getElementById('main');
+      if (main) obs.observe(main, { childList: true, subtree: true });
+    }
+  }
+  const obs = new MutationObserver(run);
+
+  document.addEventListener('click', (e) => {
+    const sel = noAccount() ? MONEY : notStarted() ? PASS_ONLY : '';
+    if (!sel || !e.target || !e.target.closest) return;
+    if (!e.target.closest(sel)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    say(noAccount() ? tx('gateT') : tx('soonT', when()));
+  }, true);
+
+  run();
+})();
+</script>
 </body>
 </html>
