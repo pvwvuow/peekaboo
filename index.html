@@ -6490,7 +6490,7 @@ if (document.body.classList.contains('in-app')) renderApp();
   const LIFT = { stand: 0, walkA: 0, walkB: 0, run1: 0, run1b: 11, run2: 22, run2b: 12, run3: 0, run3b: 13, run4: 26, run4b: 13, jump1: 0, jump2: 18, jump3: 60, jump4: 38, land1: 0, land3: 0, landrun: 4, breathA: 0, breathB: 0, breathC: 0 };
   const BREATH = [['stand', 0.5], ['breathA', 0.28], ['breathB', 0.7], ['breathA', 0.28], ['stand', 0.3], ['breathC', 0.55], ['stand', 0.3]];
   const BTOT = BREATH.reduce((a, b) => a + b[1], 0);
-  const breathFrame = (e0) => { let e = e0 % BTOT; for (const [f, d] of BREATH) { if (e < d) return f; e -= d; } return 'stand'; };
+  const breathFrame = (e0) => 'stand'; /* v36.1: breathing removed by owner request - idle is a static stand */
 
   function frameFor(dt) {
     if (P.crouch > 0) return ['jump1', 'crouch'];
